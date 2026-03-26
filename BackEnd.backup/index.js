@@ -4,6 +4,7 @@ const fs = require("fs").promises;
 const path = require("path");
 
 const PythonSandbox = require("./Sandbox/Python/sandbox");
+const JavaSandbox = require("./Sandbox/Java/sandbox");
 
 const app = express();
 const port = 3000;
@@ -36,13 +37,16 @@ app.get("/", async (req, res) => {
   }
 });
 
-app.post("/", (req, res) => {
+app.post("/", async (req, res) => {
   const text = req.body.text;
   const lang = req.body.lang;
 
   switch (lang) {
     case "Python":
       PythonSandbox(text, req, res);
+      break;
+    case "Java":
+      JavaSandbox(text, req, res);
       break;
     default:
       return res.status(400).json({ error: "Invalid language" });
