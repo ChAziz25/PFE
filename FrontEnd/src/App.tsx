@@ -1,128 +1,306 @@
 import { useEffect, useState } from "react";
-import { Link } from "react-router-dom";
-import settings from "./assets/gear-svgrepo-com.svg";
-import sun from "./assets/icons8-sun.svg";
-import moon from "./assets/moon-svgrepo-com.svg";
 
 function App() {
-  const [options, setOptions] = useState([]);
-  const [lang, setLang] = useState("");
-  const [text, setText] = useState("");
-  const [response, setResponse] = useState("");
-
   const [theme, setTheme] = useState("dark");
+  const [mode, setMode] = useState("resources");
 
-  useEffect(() => {
-    async function loadLanguages() {
-      try {
-        const res = await fetch("http://localhost:3000/languages");
-        const data = await res.json();
-        setOptions(data);
-        setLang(data[0]);
-      } catch (err) {
-        console.error(err);
-      }
-    }
+  const [memory, setMemory] = useState("0");
+  const [cpu, setCpu] = useState("0");
 
-    loadLanguages();
-  }, []);
+  const [containerIsRunning, setContainerIsRunning] = useState(false);
+  const [containerId, setContainerId] = useState("");
+  const [containersList, setContainersList] = useState([
+    { name: "container name", id: "container_id" },
+  ]);
+
+  const [selectedContainer, setSelectedContainer] = useState("");
+
+  const [command, setCommand] = useState("");
+  const [output, setOutput] = useState("");
 
   useEffect(() => {
     document.documentElement.dataset.theme = theme;
   }, [theme]);
 
-  function HandleSubmit() {
+  useEffect(() => {
+    if (!containerId) return;
+
+    const interval = setInterval(() => {
+      fetch("http://localhost:3000/heartbeat", {
+        method: "POST",
+        body: JSON.stringify({ containerId }),
+        headers: { "Content-Type": "application/json" },
+      });
+    }, 5000);
+
+    return () => clearInterval(interval);
+  }, [containerId]);
+
+  // Function to run the container
+  function RunContainer() {
+    console.log("Memory:", memory);
+    console.log("CPU:", cpu);
+
+    const parsedMemory = parseFloat(memory);
+    const parsedCpu = parseFloat(cpu) / 100;
+
+    //input validation
+    if (isNaN(parsedMemory) || isNaN(parsedCpu)) {
+      return alert("Please enter valid numbers for memory and CPU.");
+    } else if (parsedMemory < 0 || parsedCpu < 0) {
+      return alert("Please enter non-negative numbers for memory and CPU.");
+    } else if (parsedMemory < 6) {
+      return alert("Please enter valid numbers for memory and CPU.");
+    }
+
+    // Make a POST request to the backend
     fetch("http://localhost:3000/run", {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
       },
-      body: JSON.stringify({
-        text: text,
-        lang: lang,
-      }),
+      body: JSON.stringify({ memory, cpu }),
     })
       .then((res) => res.json())
-      .then((data) => setResponse(data.result))
-      .catch((err) => console.log(err));
+      .then(
+        (data) => (
+          console.log("Response:", data),
+          setContainerIsRunning(true),
+          setContainerId(data.containerId)
+        ),
+      )
+      .catch((error) => console.error("Error:", error));
+  }
+
+  // Function to stop the container
+  function StopContainer() {
+    setOutput((prev) => prev + "closing container...\n");
+
+    fetch("http://localhost:3000/stop", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({ containerId }),
+    })
+      .then((res) => res.json())
+      .then(
+        (data) => (
+          console.log("Response:", data),
+          setContainerIsRunning(false),
+          setContainerId(""),
+          setOutput("")
+        ),
+      )
+      .catch((error) => console.error("Error:", error));
+  }
+
+  // Function to execute commands in the container
+  function ExecCommands() {
+    setOutput((prev) => prev + ">" + command + "\n");
+    console.log(output + "\n");
+
+    fetch("http://localhost:3000/exec", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({ command }),
+    })
+      .then((res) => res.json())
+      .then(
+        (data) => (
+          console.log("Response:", data),
+          setOutput((prev) => prev + data.output),
+          console.log(output)
+        ),
+      )
+      .catch((error) => console.error("Error:", error));
+  }
+
+  // Function to get the list of containers
+  function ListContainers() {
+    fetch("http://localhost:3000/listContainers", {
+      method: "GET",
+    })
+      .then((res) => res.json())
+      .then((data) => {
+        console.log("Response:", data);
+        const merged = data.containerList.map(
+          (name: string, index: number) => ({
+            name,
+            id: data.containerListId[index],
+          }),
+        );
+
+        setContainersList(merged);
+
+        if (merged.length > 0) {
+          setSelectedContainer(merged[0].id);
+        }
+      })
+      .catch((error) => console.error("Error:", error));
+  }
+
+  // Function to start the container
+  function StartContainer() {
+    console.log("Selected container:", selectedContainer);
+
+    fetch("http://localhost:3000/startContainer", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({ selectedContainer }),
+    })
+      .then((res) => res.json())
+      .then(
+        (data) => (
+          console.log("Response:", data),
+          setContainerIsRunning(true),
+          setContainerId(selectedContainer)
+        ),
+      )
+      .catch((error) => console.error("Error:", error));
   }
 
   return (
-    <>
-      <div className="absolute top-4 right-4 justify-between">
-        <Link to="/Settings">
-          <button className="mr-2 ml-2">
-            <img src={settings} width="28" height="28" alt="settings" />
-          </button>
-        </Link>
-        {theme === "dark" ? (
-          <button className="mr-2 ml-2" onClick={() => setTheme("light")}>
-            <img src={moon} width="28" height="28" alt="light" />
-          </button>
-        ) : (
-          <button className="mr-2 ml-2" onClick={() => setTheme("dark")}>
-            <img src={sun} width="28" height="28" alt="dark" />
-          </button>
-        )}
-      </div>
-      <div className="min-h-screen bg-[var(--color-bg-main)] flex items-center justify-center p-6">
-        <div className="w-full max-w-xl bg-[var(--color-bg-card)] shadow-lg rounded-xl p-8 space-y-6">
-          <h1 className="text-3xl font-bold text-center text-[var(--color-text-main)]">
-            FrontEnd
-          </h1>
-
-          <div className="space-y-2">
-            <h2 className="text-lg font-semibold text-[var(--color-text-secondary)]">
-              Input
-            </h2>
-
-            <textarea
-              onChange={(e) => setText(e.target.value)}
-              placeholder="Type your text here..."
-              className="w-full h-32 p-3 border border-[var(--color-border-strong)] rounded-lg resize-none
-        bg-[var(--color-bg-card)]
-        focus:outline-none focus:ring-2 focus:ring-[var(--color-focus)] text-[var(--color-text-main)]"
+    <div className="flex flex-col items-center justify-center bg-(--color-bg-main) text-(--color-text-main) min-h-screen w-screen p-4">
+      <div className="flex flex-col items-center gap-6 bg-(--color-bg-card) p-10 rounded-2xl shadow-lg w-full max-w-md">
+        {/* Toggle Section */}
+        <div className="flex flex-col items-center gap-6 bg-(--color-bg-muted) p-6 rounded-xl w-full">
+          {/* Slider */}
+          <div className="relative flex w-full items-center rounded-full bg-(--color-bg-main) p-1 border border-(--color-border)">
+            <div
+              className={`absolute inset-y-1 left-1 w-[calc(50%-4px)] rounded-full bg-(--color-bg-card) shadow transition-all duration-300 ease-in-out ${
+                mode === "existing" ? "translate-x-full" : ""
+              }`}
             />
 
-            {options.length > 0 && (
-              <select
-                value={lang}
-                onChange={(e) => setLang(e.target.value)}
-                className="w-full p-3 border border-[var(--color-border-strong)] rounded-lg
-        bg-[var(--color-bg-card)]
-        focus:outline-none focus:ring-2 focus:ring-[var(--color-focus)] text-[var(--color-text-main)]"
+            <label className="relative z-10 flex flex-1 cursor-pointer items-center justify-center py-2 text-sm font-medium">
+              <input
+                type="radio"
+                name="slider"
+                className="sr-only"
+                checked={mode === "resources"}
+                onChange={() => setMode("resources")}
+              />
+              resources
+            </label>
+
+            <label className="relative z-10 flex flex-1 cursor-pointer items-center justify-center py-2 text-sm font-medium">
+              <input
+                type="radio"
+                name="slider"
+                className="sr-only"
+                checked={mode === "existing"}
+                onChange={() => (setMode("existing"), ListContainers())}
+              />
+              existing
+            </label>
+          </div>
+
+          {/* Resources Mode */}
+          {mode === "resources" && (
+            <div className="flex flex-col gap-4 w-full">
+              <h1 className="text-lg font-semibold tracking-tight">
+                Resources
+              </h1>
+
+              <input
+                type="number"
+                placeholder="Memory (MB)"
+                onChange={(e) => setMemory(e.target.value)}
+                className="w-full px-3 py-2 rounded-lg border border-(--color-border) bg-(--color-bg-card) text-(--color-text-main) placeholder-(--color-text-muted) focus:outline-none focus:ring-2 focus:ring-(--color-focus) transition"
+              />
+
+              <input
+                type="number"
+                placeholder="CPU (%)"
+                onChange={(e) => setCpu(e.target.value)}
+                className="w-full px-3 py-2 rounded-lg border border-(--color-border) bg-(--color-bg-card) text-(--color-text-main) placeholder-(--color-text-muted) focus:outline-none focus:ring-2 focus:ring-(--color-focus) transition"
+              />
+
+              <button
+                onClick={RunContainer}
+                className="w-full bg-(--color-primary) hover:bg-(--color-primary-hover) text-(--color-button-text) px-4 py-2 rounded-lg transition active:scale-[0.98]"
               >
-                {options.map((option, index) => (
-                  <option key={index} value={option}>
-                    {option}
+                run
+              </button>
+            </div>
+          )}
+
+          {/* Existing Mode */}
+          {mode === "existing" && (
+            <div className="flex flex-col gap-4 w-full">
+              <h1 className="text-lg font-semibold tracking-tight">
+                Existing Containers
+              </h1>
+
+              <select
+                value={selectedContainer}
+                onChange={(e) => setSelectedContainer(e.target.value)}
+                className="w-full px-3 py-2 rounded-lg border border-(--color-border) bg-(--color-bg-card) text-(--color-text-main) focus:outline-none focus:ring-2 focus:ring-(--color-focus) transition"
+              >
+                {containersList.map((container) => (
+                  <option key={container.id} value={container.id}>
+                    {container.name}
                   </option>
                 ))}
               </select>
-            )}
-          </div>
 
-          <button
-            onClick={HandleSubmit}
-            className="w-full bg-[var(--color-primary)] text-white py-3 rounded-lg font-semibold
-      hover:bg-[var(--color-primary-hover)] transition"
-          >
-            Submit
-          </button>
+              <button
+                onClick={StartContainer}
+                className="w-full bg-(--color-primary) hover:bg-(--color-primary-hover) text-(--color-button-text) px-4 py-2 rounded-lg transition active:scale-[0.98]"
+              >
+                start
+              </button>
+            </div>
+          )}
+        </div>
 
-          <div className="space-y-2">
-            <h2 className="text-lg font-semibold text-[var(--color-text-secondary)]">
-              Output
+        {/* Divider */}
+        <hr className="w-full border-(--color-border)" />
+
+        {/* Running Container Panel */}
+        {containerIsRunning && (
+          <div className="w-full bg---color-bg-muted border border-(--color-border) rounded-xl p-4 flex flex-col gap-3">
+            <h2 className="text-sm font-semibold text-(--color-success)">
+              ● Container {containerId} Running
             </h2>
 
-            <div className="min-h-[80px] max-h-60 overflow-y-auto p-4 border border-[var(--color-border)] rounded-lg bg-[var(--color-bg-muted)]">
-              <p className="text-[var(--color-text-main)] whitespace-pre-wrap">
-                {response}
-              </p>
+            <textarea
+              readOnly
+              value={output}
+              className="w-full h-40 p-3 rounded-lg bg-black text-green-400 font-mono text-sm border border-(--color-border)"
+            />
+
+            <input
+              type="text"
+              placeholder="Enter command..."
+              onChange={(e) => setCommand(e.target.value)}
+              className="w-full px-3 py-2 rounded-lg border border-(--color-border) bg-(--color-bg-card) text-(--color-text-main) placeholder-(--color-text-muted) focus:outline-none focus:ring-2 focus:ring-(--color-focus) transition"
+            />
+
+            <div className="flex gap-2">
+              <button
+                onClick={ExecCommands}
+                className="flex-1 bg-(--color-primary) hover:bg-(--color-primary-hover) text-(--color-button-text) px-4 py-2 rounded-lg transition active:scale-[0.98]"
+              >
+                exec
+              </button>
+
+              <button
+                onClick={StopContainer}
+                className="flex-1 bg-(--color-error) hover:opacity-90 text-white px-4 py-2 rounded-lg transition"
+              >
+                stop
+              </button>
             </div>
           </div>
-        </div>
+        )}
       </div>
-    </>
+    </div>
   );
 }
 
