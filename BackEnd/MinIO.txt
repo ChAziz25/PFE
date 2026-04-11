@@ -1,0 +1,2 @@
+-e MINIO_ROOT_USER=sandbox \
+-e MINIO_ROOT_PASSWORD=sandbox123 \
