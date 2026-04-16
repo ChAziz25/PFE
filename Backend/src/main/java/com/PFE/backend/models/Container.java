@@ -22,9 +22,7 @@ public class Container {
     }
 
     @PreUpdate
-    protected void onUpdate(){
-        lastStartedAt = LocalDateTime.now();
-    }
+    protected void onUpdate(){ lastStartedAt = LocalDateTime.now(); }
 
     public String getId() { return id; }
     public String getName() { return name; }
