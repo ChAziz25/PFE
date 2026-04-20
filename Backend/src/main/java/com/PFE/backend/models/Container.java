@@ -20,10 +20,13 @@ public class Container {
     @Column(name = "last_used")
     private LocalDateTime lastUsed;
 
-    public Container(){}
+    public Container(){
+        this.status = "CREATED";
+    }
     public Container(String id, String name){
         this.id = id;
         this.name = name;
+        this.status = "CREATED";
     }
 
     @PrePersist

@@ -3,6 +3,7 @@ package com.PFE.backend.services;
 import com.PFE.backend.models.Container;
 import com.PFE.backend.repositories.ContainerRepository;
 import org.springframework.stereotype.Service;
+import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 
 import java.io.BufferedReader;
 import java.io.IOException;
@@ -42,6 +43,7 @@ public class ContainerService {
         System.out.println("Container Name: " + containerName);
 
         Container container = new Container(containerId, containerName);
+        container.setStatus("RUNNING");
         containerRepository.save(container);
 
         return containerId;

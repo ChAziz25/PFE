@@ -5,8 +5,11 @@ import com.PFE.backend.repositories.CommandRepository;
 import com.PFE.backend.repositories.ContainerRepository;
 import com.PFE.backend.services.CommandProducerService;
 import com.PFE.backend.services.ContainerService;
+import com.PFE.backend.services.StreamService;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 
 import java.time.LocalDateTime;
 import java.util.ArrayList;
@@ -21,12 +24,14 @@ public class ContainerController {
     private final ContainerRepository containerRepository;
     private final CommandProducerService commandProducerService;
     private final CommandRepository commandRepository;
+    private final StreamService streamService;
 
-    public ContainerController(ContainerService containerService, ContainerRepository containerRepository, CommandProducerService commandProducerService, CommandRepository commandRepository) {
+    public ContainerController(ContainerService containerService, ContainerRepository containerRepository, CommandProducerService commandProducerService, CommandRepository commandRepository, StreamService streamService) {
         this.containerService = containerService;
         this.containerRepository = containerRepository;
         this.commandProducerService = commandProducerService;
         this.commandRepository = commandRepository;
+        this.streamService = streamService;
     }
 
     @PostMapping("/run")
@@ -80,6 +85,11 @@ public class ContainerController {
         ));
     }
 
+    @GetMapping(value = "/stream/{commandId}", produces = MediaType.TEXT_EVENT_STREAM_VALUE)
+    public SseEmitter stream(@PathVariable String commandId){
+        return streamService.createEmitter(commandId);
+    }
+
     @GetMapping("/listContainers")
     public ResponseEntity<?> listContainers() {
         List<Container> containers = containerRepository.findAll();
@@ -124,6 +134,7 @@ public class ContainerController {
             if (container != null) {
                 container.setLastStartedAt(LocalDateTime.now());
                 container.setLastUsed(LocalDateTime.now());
+                container.setStatus("RUNNING");
                 containerRepository.save(container);
             }
 
@@ -157,6 +168,11 @@ public class ContainerController {
             String error = new String(stopProcess.getErrorStream().readAllBytes());
             if (!error.isEmpty()) {
                 return ResponseEntity.status(500).body(Map.of("error", error));
+            }
+
+            Container container = containerRepository.findById(containerId).orElse(null);
+            if (container != null) {
+                container.setStatus("STOPPED");
             }
 
             return ResponseEntity.ok(Map.of(

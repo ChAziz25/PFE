@@ -85,6 +85,8 @@ function App() {
   function ExecCommands() {
     setOutput((prev) => prev + ">" + command + "\n");
 
+    let eventSource;
+
     fetch("http://localhost:8080/api/exec", {
       method: "POST",
       headers: {
@@ -96,29 +98,26 @@ function App() {
       .then((data) => {
         const commandId = data.commandId;
 
-        let attempts = 0;
-        const maxAttempts = 10;
+        const eventSource = new EventSource(
+          `http://localhost:8080/api/stream/${commandId}`,
+        );
 
-        const interval = setInterval(() => {
-          attempts++;
+        eventSource.onmessage = (event) => {
+          setOutput((prev) => prev + event.data + "\n");
+          eventSource.close();
+        };
 
-          fetch(`http://localhost:8080/api/result/${commandId}`)
-            .then((res) => res.json())
-            .then((result) => {
-              if (result.status !== "PENDING") {
-                setOutput((prev) => prev + result.output + "\n");
-                clearInterval(interval);
-              }
+        eventSource.onerror = () => {
+          eventSource.close();
+          setOutput((prev) => prev + "Error receiving output\n");
+        };
 
-              if (attempts >= maxAttempts) {
-                setOutput((prev) => prev + "Timeout waiting for result\n");
-                clearInterval(interval);
-              }
-            })
-            .catch(() => {
-              clearInterval(interval);
-            });
-        }, 1000);
+        setTimeout(() => {
+          if (eventSource) {
+            eventSource.close();
+            setOutput((prev) => prev + "Command timed out\n");
+          }
+        }, 10000);
       })
       .catch((error) => console.error("Error:", error));
   }

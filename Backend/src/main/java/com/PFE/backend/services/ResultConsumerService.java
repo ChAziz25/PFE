@@ -6,7 +6,9 @@ import com.PFE.backend.repositories.CommandRepository;
 import com.PFE.backend.repositories.ContainerRepository;
 import org.springframework.kafka.annotation.KafkaListener;
 import org.springframework.stereotype.Service;
+import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 
+import java.io.IOException;
 import java.time.LocalDateTime;
 import java.util.Map;
 
@@ -15,10 +17,12 @@ public class ResultConsumerService {
 
     private final CommandRepository commandRepository;
     private final ContainerRepository containerRepository;
+    private final StreamService streamService;
 
-    public ResultConsumerService(CommandRepository commandRepository, ContainerRepository containerRepository) {
+    public ResultConsumerService(CommandRepository commandRepository, ContainerRepository containerRepository, StreamService streamService) {
         this.commandRepository = commandRepository;
         this.containerRepository = containerRepository;
+        this.streamService = streamService;
     }
 
     @KafkaListener(topics = "results", groupId = "spring-consumer")
@@ -51,6 +55,16 @@ public class ResultConsumerService {
 
         cmd.setOutput(output);
         commandRepository.save(cmd);
+
+        SseEmitter emitter = streamService.emitters.get(commandId);
+        if (emitter != null) {
+            try {
+                emitter.send(SseEmitter.event().data(output));
+                emitter.complete();
+            } catch (IOException e) {
+                emitter.completeWithError(e);
+            }
+        }
 
         System.out.println("Command " + commandId + " output: "+ output);
     }

@@ -13,11 +13,9 @@ import java.util.List;
 @Service
 public class ContainerCleanupService {
     private final ContainerRepository containerRepository;
-    private final Container container;
 
-    public ContainerCleanupService(ContainerRepository containerRepository, Container container) {
+    public ContainerCleanupService(ContainerRepository containerRepository) {
         this.containerRepository = containerRepository;
-        this.container = container;
     }
 
     @Scheduled(fixedRate = 60000)
@@ -48,6 +46,10 @@ public class ContainerCleanupService {
                     String isRunning = checkReader.readLine();
 
                     if (!"true".equals(isRunning)){
+                        if (!"STOPPED".equals(container.getStatus())) {
+                            container.setStatus("STOPPED");
+                            containerRepository.save(container);
+                        }
                         continue;
                     }
 
