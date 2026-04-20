@@ -8,6 +8,7 @@ consumer = KafkaConsumer(
     bootstrap_servers='localhost:9092',
     value_deserializer=lambda m: json.loads(m.decode('utf-8')),
     auto_offset_reset='latest',
+    enable_auto_commit=True,
     group_id='python-worker',
 )
 
@@ -19,9 +20,9 @@ producer = KafkaProducer(
 def execute(container_ID, command):
     try:
         result = subprocess.run(
-            ["docker", "exec", container_ID, command],
+            ["docker", "exec", container_ID, "sh", "-c", command],
             capture_output=True,
-            text=True
+            text=True,timeout=30
         )
         return (result.stdout + result.stderr).strip()
     except Exception as e:
@@ -48,4 +49,5 @@ for message in consumer:
 
     print("RESPONSE:", response)
 
-    producer.send('results', response)
+    future = producer.send('results', response)
+    future.get(timeout=10)

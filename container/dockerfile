@@ -3,8 +3,5 @@ FROM alpine:3.14
 # Update and upgrade packages
 RUN apk update && apk upgrade
 
-# Expose port for communication
-EXPOSE 8080
-
 # Set the default command
-CMD ["sleep", "infinity"]
+CMD sh -c "echo READY && sleep infinity"

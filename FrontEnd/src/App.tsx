@@ -22,20 +22,6 @@ function App() {
     document.documentElement.dataset.theme = theme;
   }, [theme]);
 
-  useEffect(() => {
-    if (!containerId) return;
-
-    const interval = setInterval(() => {
-      fetch("http://localhost:3000/heartbeat", {
-        method: "POST",
-        body: JSON.stringify({ containerId }),
-        headers: { "Content-Type": "application/json" },
-      });
-    }, 5000);
-
-    return () => clearInterval(interval);
-  }, [containerId]);
-
   // Function to run the container
   function RunContainer() {
     console.log("Memory:", memory);
@@ -54,7 +40,7 @@ function App() {
     }
 
     // Make a POST request to the backend
-    fetch("http://localhost:3000/run", {
+    fetch("http://localhost:8080/api/run", {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
@@ -76,7 +62,7 @@ function App() {
   function StopContainer() {
     setOutput((prev) => prev + "closing container...\n");
 
-    fetch("http://localhost:3000/stop", {
+    fetch("http://localhost:8080/api/stop", {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
@@ -98,9 +84,8 @@ function App() {
   // Function to execute commands in the container
   function ExecCommands() {
     setOutput((prev) => prev + ">" + command + "\n");
-    console.log(output + "\n");
 
-    fetch("http://localhost:3000/exec", {
+    fetch("http://localhost:8080/api/exec", {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
@@ -108,19 +93,39 @@ function App() {
       body: JSON.stringify({ command, containerId }),
     })
       .then((res) => res.json())
-      .then(
-        (data) => (
-          console.log("Response:", data),
-          setOutput((prev) => prev + data.output),
-          console.log(output)
-        ),
-      )
+      .then((data) => {
+        const commandId = data.commandId;
+
+        let attempts = 0;
+        const maxAttempts = 10;
+
+        const interval = setInterval(() => {
+          attempts++;
+
+          fetch(`http://localhost:8080/api/result/${commandId}`)
+            .then((res) => res.json())
+            .then((result) => {
+              if (result.status !== "PENDING") {
+                setOutput((prev) => prev + result.output + "\n");
+                clearInterval(interval);
+              }
+
+              if (attempts >= maxAttempts) {
+                setOutput((prev) => prev + "Timeout waiting for result\n");
+                clearInterval(interval);
+              }
+            })
+            .catch(() => {
+              clearInterval(interval);
+            });
+        }, 1000);
+      })
       .catch((error) => console.error("Error:", error));
   }
 
   // Function to get the list of containers
   function ListContainers() {
-    fetch("http://localhost:3000/listContainers", {
+    fetch("http://localhost:8080/api/listContainers", {
       method: "GET",
     })
       .then((res) => res.json())
@@ -128,8 +133,8 @@ function App() {
         console.log("Response:", data);
         const merged = data.containerList.map(
           (name: string, index: number) => ({
-            name,
-            id: data.containerListId[index],
+            name: data.containerList[index],
+            id: data.containerListID[index],
           }),
         );
 
@@ -146,12 +151,12 @@ function App() {
   function StartContainer() {
     console.log("Selected container:", selectedContainer);
 
-    fetch("http://localhost:3000/startContainer", {
+    fetch("http://localhost:8080/api/start", {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
       },
-      body: JSON.stringify({ selectedContainer }),
+      body: JSON.stringify({ containerId: selectedContainer }),
     })
       .then((res) => res.json())
       .then(
