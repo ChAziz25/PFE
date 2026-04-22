@@ -5,7 +5,10 @@ import com.PFE.backend.repositories.CommandRepository;
 import com.PFE.backend.repositories.ContainerRepository;
 import com.PFE.backend.services.CommandProducerService;
 import com.PFE.backend.services.ContainerService;
+import com.PFE.backend.services.RedisService;
 import com.PFE.backend.services.StreamService;
+
+import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -15,6 +18,7 @@ import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.*;
 
 @CrossOrigin(origins = "http://localhost:5173")
 @RestController
@@ -25,13 +29,19 @@ public class ContainerController {
     private final CommandProducerService commandProducerService;
     private final CommandRepository commandRepository;
     private final StreamService streamService;
+    private final RedisService redisService;
+    private final RedisTemplate<String, String> redisTemplate;
 
-    public ContainerController(ContainerService containerService, ContainerRepository containerRepository, CommandProducerService commandProducerService, CommandRepository commandRepository, StreamService streamService) {
+    private final Map<String, SseEmitter> emitters = new ConcurrentHashMap<>();
+
+    public ContainerController(ContainerService containerService, ContainerRepository containerRepository, CommandProducerService commandProducerService, CommandRepository commandRepository, StreamService streamService, RedisService redisService, RedisTemplate<String, String> redisTemplate) {
         this.containerService = containerService;
         this.containerRepository = containerRepository;
         this.commandProducerService = commandProducerService;
         this.commandRepository = commandRepository;
         this.streamService = streamService;
+        this.redisService = redisService;
+        this.redisTemplate = redisTemplate;
     }
 
     @PostMapping("/run")
@@ -63,7 +73,8 @@ public class ContainerController {
 
             Container container = containerRepository.findById(containerId).orElse(null);
             if (container != null) {
-                container.setLastUsed(LocalDateTime.now());
+                //container.setLastUsed(LocalDateTime.now());
+                redisService.setContainerTTL(containerId);
                 containerRepository.save(container);
             }
 
@@ -133,10 +144,12 @@ public class ContainerController {
             Container container = containerRepository.findById(containerId).orElse(null);
             if (container != null) {
                 container.setLastStartedAt(LocalDateTime.now());
-                container.setLastUsed(LocalDateTime.now());
+                //container.setLastUsed(LocalDateTime.now());
+                redisService.setContainerTTL(containerId);
                 container.setStatus("RUNNING");
                 containerRepository.save(container);
             }
+
 
             return ResponseEntity.ok(Map.of(
                     "message", "container started",
@@ -182,6 +195,35 @@ public class ContainerController {
         } catch (Exception e) {
             return ResponseEntity.status(500).body(Map.of("error", e.getMessage()));
         }
+    }
+
+    @GetMapping("/container-status/{containerId}")
+    public SseEmitter streamStatus(@PathVariable String containerId) {
+        SseEmitter emitter = new SseEmitter(15 * 60 * 1000L);
+        emitters.put(containerId, emitter);
+
+        emitter.onCompletion(() -> emitters.remove(containerId));
+        emitter.onTimeout(() -> emitters.remove(containerId));
+
+        ScheduledExecutorService schedule = Executors.newSingleThreadScheduledExecutor();
+        schedule.scheduleAtFixedRate(() -> {
+            try {
+                Long ttl = redisTemplate.getExpire("container:" + containerId, TimeUnit.SECONDS);
+
+                if (ttl == null || ttl <= 0) {
+                    emitter.send(SseEmitter.event().name("stopped").data("STOPPED"));
+                    emitter.complete();
+                    schedule.shutdown();
+                } else {
+                    emitter.send(SseEmitter.event().name("ttl").data("STOPPED"));
+                }
+            } catch (Exception e) {
+                emitter.completeWithError(e);
+                schedule.shutdown();
+            }
+        }, 0, 1, TimeUnit.SECONDS);
+
+        return emitter;
     }
 
     @PostMapping("/delete")

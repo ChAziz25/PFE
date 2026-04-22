@@ -22,6 +22,21 @@ function App() {
     document.documentElement.dataset.theme = theme;
   }, [theme]);
 
+  function startStatusStream(id: string) {
+    const eventSource = new EventSource(
+      `http://localhost:8080/api/container-status/${id}`,
+    );
+
+    eventSource.addEventListener("stopped", () => {
+      setContainerIsRunning(false);
+      setContainerId("");
+      setOutput("");
+      eventSource.close();
+    });
+
+    eventSource.onerror = () => eventSource.close();
+  }
+
   // Function to run the container
   function RunContainer() {
     console.log("Memory:", memory);
@@ -52,7 +67,8 @@ function App() {
         (data) => (
           console.log("Response:", data),
           setContainerIsRunning(true),
-          setContainerId(data.containerId)
+          setContainerId(data.containerId),
+          startStatusStream(data.containerId)
         ),
       )
       .catch((error) => console.error("Error:", error));
@@ -97,27 +113,33 @@ function App() {
       .then((res) => res.json())
       .then((data) => {
         const commandId = data.commandId;
+        let received = false;
 
         const eventSource = new EventSource(
           `http://localhost:8080/api/stream/${commandId}`,
         );
 
-        eventSource.onmessage = (event) => {
-          setOutput((prev) => prev + event.data + "\n");
-          eventSource.close();
-        };
-
-        eventSource.onerror = () => {
-          eventSource.close();
-          setOutput((prev) => prev + "Error receiving output\n");
-        };
-
-        setTimeout(() => {
-          if (eventSource) {
+        const timeout = setTimeout(() => {
+          if (!received) {
             eventSource.close();
             setOutput((prev) => prev + "Command timed out\n");
           }
         }, 10000);
+
+        eventSource.onmessage = (event) => {
+          setOutput((prev) => prev + event.data + "\n");
+          eventSource.close();
+          received = true;
+          clearTimeout(timeout);
+        };
+
+        eventSource.onerror = () => {
+          if (!received) {
+            eventSource.close();
+            clearTimeout(timeout);
+            setOutput((prev) => prev + "Error receiving output\n");
+          }
+        };
       })
       .catch((error) => console.error("Error:", error));
   }
@@ -162,7 +184,8 @@ function App() {
         (data) => (
           console.log("Response:", data),
           setContainerIsRunning(true),
-          setContainerId(selectedContainer)
+          setContainerId(selectedContainer),
+          startStatusStream(selectedContainer)
         ),
       )
       .catch((error) => console.error("Error:", error));

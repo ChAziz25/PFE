@@ -17,6 +17,7 @@ public class StreamService {
 
         emitter.onCompletion(() -> emitters.remove(commandId));
         emitter.onTimeout(() -> emitters.remove(commandId));
+        emitter.onError((e) -> emitters.remove(commandId));
 
         return emitter;
     }
