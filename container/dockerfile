@@ -1,7 +1,11 @@
 FROM alpine:3.14
 
-# Update and upgrade packages
 RUN apk update && apk upgrade
+RUN apk add --no-cache python3 py3-pip bash gcc musl-dev libffi-dev
+RUN pip install --upgrade pip
 
-# Set the default command
+RUN pip install anthropic google-genai groq
+COPY agent.py /usr/local/bin/ask
+RUN chmod +x /usr/local/bin/ask
+
 CMD sh -c "echo READY && sleep infinity"

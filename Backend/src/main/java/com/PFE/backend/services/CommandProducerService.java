@@ -29,6 +29,7 @@ public class CommandProducerService {
         commandRepository.save(cmd);
 
         Map<String, Object> payload = Map.of(
+                "type", "EXECUTE_COMMAND",
                 "commandId", commandId,
                 "command", command,
                 "targetContainerId", containerId

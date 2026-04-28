@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import Auth from "./Auth";
 
 function App() {
   const [theme, setTheme] = useState("dark");
@@ -22,28 +23,73 @@ function App() {
     document.documentElement.dataset.theme = theme;
   }, [theme]);
 
+  function authCheck(): boolean {
+    const user = localStorage.getItem("user");
+    if (!user) {
+      window.location.href = "/login";
+    }
+    return true;
+  }
+
   function startStatusStream(id: string) {
+    setTimeout(() => {
+      const eventSource = new EventSource(
+        `http://localhost:8080/api/container-status/${id}`,
+      );
+
+      eventSource.addEventListener("stopped", () => {
+        setContainerIsRunning(false);
+        setContainerId("");
+        setOutput("");
+        eventSource.close();
+      });
+
+      eventSource.onerror = (e) => {
+        console.error("SSE error:", e);
+        if (eventSource.readyState === EventSource.CLOSED) {
+          eventSource.close();
+        }
+      };
+    }, 500);
+  }
+
+  function StartContainerStream(requestId: string) {
     const eventSource = new EventSource(
-      `http://localhost:8080/api/container-status/${id}`,
+      `http://localhost:8080/api/containers/stream?requestId=${requestId}`,
     );
 
-    eventSource.addEventListener("stopped", () => {
-      setContainerIsRunning(false);
-      setContainerId("");
-      setOutput("");
-      eventSource.close();
-    });
+    eventSource.onmessage = (event) => {
+      const data = JSON.parse(event.data);
 
-    eventSource.onerror = () => eventSource.close();
+      console.log("Container Ready:", data);
+
+      setContainerId(data.containerId);
+      startStatusStream(data.containerId);
+
+      eventSource.close();
+    };
+
+    eventSource.onerror = (err) => {
+      console.log("SSE error:", err);
+      eventSource.close();
+    };
   }
 
   // Function to run the container
   function RunContainer() {
+    authCheck();
+    if (containerIsRunning) {
+      return alert("A container is already running.");
+    }
+
     console.log("Memory:", memory);
     console.log("CPU:", cpu);
+    console.log("User: ", localStorage.getItem("user"));
 
     const parsedMemory = parseFloat(memory);
     const parsedCpu = parseFloat(cpu) / 100;
+    const userRaw = localStorage.getItem("user");
+    const user = userRaw ? JSON.parse(userRaw) : null;
 
     //input validation
     if (isNaN(parsedMemory) || isNaN(parsedCpu)) {
@@ -60,17 +106,14 @@ function App() {
       headers: {
         "Content-Type": "application/json",
       },
-      body: JSON.stringify({ memory, cpu }),
+      body: JSON.stringify({ memory, cpu, user }),
     })
       .then((res) => res.json())
-      .then(
-        (data) => (
-          console.log("Response:", data),
-          setContainerIsRunning(true),
-          setContainerId(data.containerId),
-          startStatusStream(data.containerId)
-        ),
-      )
+      .then((data) => {
+        console.log("Response:", data);
+        setContainerIsRunning(true);
+        StartContainerStream(data.requestedId);
+      })
       .catch((error) => console.error("Error:", error));
   }
 
@@ -100,8 +143,6 @@ function App() {
   // Function to execute commands in the container
   function ExecCommands() {
     setOutput((prev) => prev + ">" + command + "\n");
-
-    let eventSource;
 
     fetch("http://localhost:8080/api/exec", {
       method: "POST",
@@ -146,30 +187,36 @@ function App() {
 
   // Function to get the list of containers
   function ListContainers() {
-    fetch("http://localhost:8080/api/listContainers", {
+    const user = JSON.parse(localStorage.getItem("user") || "{}");
+    if (!user || !user.id) {
+      return;
+    }
+    
+    fetch(`http://localhost:8080/api/listContainers?userId=${user.id}`, {
       method: "GET",
     })
       .then((res) => res.json())
       .then((data) => {
         console.log("Response:", data);
         const merged = data.containerList.map(
-          (name: string, index: number) => ({
-            name: data.containerList[index],
-            id: data.containerListID[index],
+          (c: { name: string; id: string }) => ({
+            name: c.name,
+            id: c.id,
           }),
         );
-
         setContainersList(merged);
-
-        if (merged.length > 0) {
-          setSelectedContainer(merged[0].id);
-        }
+        if (merged.length > 0) setSelectedContainer(merged[0].id);
       })
       .catch((error) => console.error("Error:", error));
   }
 
   // Function to start the container
   function StartContainer() {
+    authCheck();
+    if (containerIsRunning) {
+      return alert("A container is already running.");
+    }
+
     console.log("Selected container:", selectedContainer);
 
     fetch("http://localhost:8080/api/start", {
@@ -193,6 +240,7 @@ function App() {
 
   return (
     <div className="flex flex-col items-center justify-center bg-(--color-bg-main) text-(--color-text-main) min-h-screen w-screen p-4">
+      <Auth />
       <div className="flex flex-col items-center gap-6 bg-(--color-bg-card) p-10 rounded-2xl shadow-lg w-full max-w-md">
         {/* Toggle Section */}
         <div className="flex flex-col items-center gap-6 bg-(--color-bg-muted) p-6 rounded-xl w-full">

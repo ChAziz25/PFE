@@ -14,6 +14,10 @@ public class Container {
     private String name;
     private String status;
 
+    @ManyToOne
+    @JoinColumn(name = "user_id")
+    private User owner;
+
     private LocalDateTime createdAt;
     private LocalDateTime lastStartedAt;
 
@@ -23,9 +27,10 @@ public class Container {
     public Container(){
         this.status = "CREATED";
     }
-    public Container(String id, String name){
+    public Container(String id, String name, User owner){
         this.id = id;
         this.name = name;
+        this.owner = owner;
         this.status = "CREATED";
     }
 
@@ -44,6 +49,9 @@ public class Container {
 
     public String getStatus() { return status; }
     public void setStatus(String status) { this.status = status;}
+
+    public User getOwner() { return owner; }
+    public void setOwner(User owner) { this.owner = owner; }
 
     public void setLastStartedAt(LocalDateTime lastStartedAt) { this.lastStartedAt = lastStartedAt; }
     public void setLastUsed(LocalDateTime lastUsed) { this.lastUsed = lastUsed; }

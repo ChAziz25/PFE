@@ -1,6 +1,7 @@
 package com.PFE.backend.controllers;
 
 import com.PFE.backend.models.Container;
+import com.PFE.backend.models.User;
 import com.PFE.backend.repositories.CommandRepository;
 import com.PFE.backend.repositories.ContainerRepository;
 import com.PFE.backend.services.CommandProducerService;
@@ -13,11 +14,14 @@ import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
+import tools.jackson.databind.ObjectMapper;
 
+import java.io.IOException;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.UUID;
 import java.util.concurrent.*;
 
 @CrossOrigin(origins = "http://localhost:5173")
@@ -47,20 +51,42 @@ public class ContainerController {
     @PostMapping("/run")
     public ResponseEntity<?> run (@RequestBody Map<String, Object> body){
         try {
+            ObjectMapper mapper = new ObjectMapper();
+
             int memory = Integer.parseInt(body.get("memory").toString());
             double cpu = Double.parseDouble(body.get("cpu").toString());
+            User user = mapper.convertValue(body.get("user"), User.class);
 
-            String containerId = containerService.runContainer(memory, cpu);
+            String requestId = "cmd-" + UUID.randomUUID();
+            containerService.runContainer(memory, cpu, requestId, user);
 
             return ResponseEntity.ok(Map.of(
                     "message", "container started",
-                    "containerId", containerId
+                    "requestedId", requestId
             ));
         } catch (Exception e) {
             return ResponseEntity.status(500).body(Map.of(
                     "error", e.getMessage()
             ));
         }
+    }
+
+    @GetMapping(value = "/containers/stream", produces = "text/event-stream")
+    public SseEmitter streamContainer(@RequestParam String requestId) {
+        SseEmitter emitter = new SseEmitter(0L);
+        streamService.emitters.put(requestId, emitter);
+        System.out.println("Emitter registered: " + requestId);
+
+        try{
+            emitter.send(SseEmitter.event().comment("connected"));
+        } catch (IOException e) {
+            emitter.completeWithError(e);
+        }
+
+        emitter.onCompletion(() -> streamService.emitters.remove(requestId));
+        emitter.onTimeout(() -> streamService.emitters.remove(requestId));
+
+        return emitter;
     }
 
     @PostMapping("/exec")
@@ -73,7 +99,7 @@ public class ContainerController {
 
             Container container = containerRepository.findById(containerId).orElse(null);
             if (container != null) {
-                //container.setLastUsed(LocalDateTime.now());
+                container.setLastUsed(LocalDateTime.now());
                 redisService.setContainerTTL(containerId);
                 containerRepository.save(container);
             }
@@ -102,20 +128,14 @@ public class ContainerController {
     }
 
     @GetMapping("/listContainers")
-    public ResponseEntity<?> listContainers() {
-        List<Container> containers = containerRepository.findAll();
+    public ResponseEntity<?> listContainers(@RequestParam String userId) {
+        List<Map<String, String>> containers = new ArrayList<>();
 
-            List<String> ids = new ArrayList<>();
-            List<String> names = new ArrayList<>();
+        for (Container c : containerRepository.findByOwner_Id(userId)) {
+            containers.add(Map.of("id", c.getId(), "name", c.getName()));
+        }
 
-            for (Container c : containers) {
-                ids.add(c.getId());
-                names.add(c.getName());
-            }
-
-            return ResponseEntity.ok(Map.of(
-                    "containerListID", ids, "containerList", names
-            ));
+        return ResponseEntity.ok(Map.of("containerList", containers));
     }
 
     @PostMapping("/start")
@@ -144,7 +164,7 @@ public class ContainerController {
             Container container = containerRepository.findById(containerId).orElse(null);
             if (container != null) {
                 container.setLastStartedAt(LocalDateTime.now());
-                //container.setLastUsed(LocalDateTime.now());
+                container.setLastUsed(LocalDateTime.now());
                 redisService.setContainerTTL(containerId);
                 container.setStatus("RUNNING");
                 containerRepository.save(container);
