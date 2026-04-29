@@ -4,11 +4,9 @@ import com.PFE.backend.models.Container;
 import com.PFE.backend.models.User;
 import com.PFE.backend.repositories.CommandRepository;
 import com.PFE.backend.repositories.ContainerRepository;
-import com.PFE.backend.services.CommandProducerService;
-import com.PFE.backend.services.ContainerService;
-import com.PFE.backend.services.RedisService;
-import com.PFE.backend.services.StreamService;
+import com.PFE.backend.services.*;
 
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
@@ -38,7 +36,10 @@ public class ContainerController {
 
     private final Map<String, SseEmitter> emitters = new ConcurrentHashMap<>();
 
-    public ContainerController(ContainerService containerService, ContainerRepository containerRepository, CommandProducerService commandProducerService, CommandRepository commandRepository, StreamService streamService, RedisService redisService, RedisTemplate<String, String> redisTemplate) {
+    @Autowired
+    private final AiAgentService aiAgentService;
+
+    public ContainerController(ContainerService containerService, ContainerRepository containerRepository, CommandProducerService commandProducerService, CommandRepository commandRepository, StreamService streamService, RedisService redisService, RedisTemplate<String, String> redisTemplate, AiAgentService aiAgentService) {
         this.containerService = containerService;
         this.containerRepository = containerRepository;
         this.commandProducerService = commandProducerService;
@@ -46,6 +47,7 @@ public class ContainerController {
         this.streamService = streamService;
         this.redisService = redisService;
         this.redisTemplate = redisTemplate;
+        this.aiAgentService = aiAgentService;
     }
 
     @PostMapping("/run")
@@ -94,6 +96,14 @@ public class ContainerController {
         try {
             String containerId = body.get("containerId");
             String command     = body.get("command");
+            String userId      = body.get("userId");
+            String provider    = body.get("provider") != null ? body.get("provider") : "ollama";
+
+            if (command.startsWith("/ask")) {
+                String question = command.replaceFirst("^/ask(\\(\\w+\\))?\\s*", "");
+                String aiResponse = aiAgentService.ask(provider, question, userId);
+                return ResponseEntity.ok(Map.of("response", aiResponse, "type", "ai"));
+            }
 
             String commandId = commandProducerService.sendCommand(containerId, command);
 

@@ -71,17 +71,6 @@ def execute(container_ID, command):
     except Exception as e:
         return f"Error: {str(e)}"
 
-def agent(container_ID, command):
-    try:
-        result = subprocess.run(
-            ["docker", "exec", container_ID, "ask", command],
-            capture_output=True,
-            text=True,timeout=30
-        )
-        return (result.stdout + result.stderr).strip()
-    except Exception as e:
-        return f"Error: {str(e)}"
-
 print("Worker started")
 
 for message in consumer:
@@ -119,12 +108,7 @@ for message in consumer:
         command = data.get("command")
 
         print(f"> Executing command {command} on container {container_ID}")
-
-        if (command.startswith("/ask ")):
-            question = command[5:]
-            output = agent(container_ID, question)
-        else:
-            output = execute(container_ID, command)
+        output = execute(container_ID, command)
 
         response = {
             "type": msg_type,

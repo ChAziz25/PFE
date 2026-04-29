@@ -144,15 +144,37 @@ function App() {
   function ExecCommands() {
     setOutput((prev) => prev + ">" + command + "\n");
 
+    const userRaw = localStorage.getItem("user");
+    if (!userRaw) {
+      setOutput((prev) => prev + "Please log in first.\n");
+      return;
+    }
+
+    const user = JSON.parse(userRaw);
+    if (!user.id) {
+      setOutput((prev) => prev + "Please log in first.\n");
+      return;
+    }
+
     fetch("http://localhost:8080/api/exec", {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
       },
-      body: JSON.stringify({ command, containerId }),
+      body: JSON.stringify({
+        command,
+        containerId,
+        userId: user.id,
+        provider: command.startsWith("/ask") ? "ollama" : undefined,
+      }),
     })
       .then((res) => res.json())
       .then((data) => {
+        if (data.type === "ai") {
+          setOutput((prev) => prev + data.response + "\n");
+          return;
+        }
+
         const commandId = data.commandId;
         let received = false;
 
@@ -191,7 +213,7 @@ function App() {
     if (!user || !user.id) {
       return;
     }
-    
+
     fetch(`http://localhost:8080/api/listContainers?userId=${user.id}`, {
       method: "GET",
     })
