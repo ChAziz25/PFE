@@ -6,6 +6,8 @@ import org.springframework.stereotype.Service;
 
 @Service("gemini")
 public class GeminiProvider implements AiProvider {
+    //free tier api key so i can add it later to the database
+    //AIzaSyCEb1RFV98zTzonBw2n5QsWmHFDo4mdhqI
 
     @Override
     public String ask(String question, String apiKey) {

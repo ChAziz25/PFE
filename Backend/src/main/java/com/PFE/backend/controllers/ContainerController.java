@@ -6,6 +6,7 @@ import com.PFE.backend.repositories.CommandRepository;
 import com.PFE.backend.repositories.ContainerRepository;
 import com.PFE.backend.services.*;
 
+import com.github.dockerjava.api.DockerClient;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.http.MediaType;
@@ -33,13 +34,14 @@ public class ContainerController {
     private final StreamService streamService;
     private final RedisService redisService;
     private final RedisTemplate<String, String> redisTemplate;
+    private final DockerClient dockerClient;
 
     private final Map<String, SseEmitter> emitters = new ConcurrentHashMap<>();
 
     @Autowired
     private final AiAgentService aiAgentService;
 
-    public ContainerController(ContainerService containerService, ContainerRepository containerRepository, CommandProducerService commandProducerService, CommandRepository commandRepository, StreamService streamService, RedisService redisService, RedisTemplate<String, String> redisTemplate, AiAgentService aiAgentService) {
+    public ContainerController(ContainerService containerService, ContainerRepository containerRepository, CommandProducerService commandProducerService, CommandRepository commandRepository, StreamService streamService, RedisService redisService, RedisTemplate<String, String> redisTemplate, DockerClient dockerClient, AiAgentService aiAgentService) {
         this.containerService = containerService;
         this.containerRepository = containerRepository;
         this.commandProducerService = commandProducerService;
@@ -47,6 +49,7 @@ public class ContainerController {
         this.streamService = streamService;
         this.redisService = redisService;
         this.redisTemplate = redisTemplate;
+        this.dockerClient = dockerClient;
         this.aiAgentService = aiAgentService;
     }
 
@@ -159,17 +162,7 @@ public class ContainerController {
         }
 
         try {
-            ProcessBuilder pb = new ProcessBuilder(
-                    "docker", "start", containerId
-            );
-
-            Process process = pb.start();
-            process.waitFor();
-
-            String error = new String(process.getErrorStream().readAllBytes());
-            if (!error.isEmpty()){
-                return ResponseEntity.status(500).body(Map.of("error", error));
-            }
+            dockerClient.startContainerCmd(containerId).exec();
 
             Container container = containerRepository.findById(containerId).orElse(null);
             if (container != null) {
@@ -201,21 +194,12 @@ public class ContainerController {
         }
 
         try {
-            ProcessBuilder stopPb = new ProcessBuilder(
-                    "docker", "stop", containerId
-            );
-
-            Process stopProcess = stopPb.start();
-            stopProcess.waitFor();
-
-            String error = new String(stopProcess.getErrorStream().readAllBytes());
-            if (!error.isEmpty()) {
-                return ResponseEntity.status(500).body(Map.of("error", error));
-            }
+            dockerClient.stopContainerCmd(containerId).exec();
 
             Container container = containerRepository.findById(containerId).orElse(null);
             if (container != null) {
                 container.setStatus("STOPPED");
+                containerRepository.save(container);
             }
 
             return ResponseEntity.ok(Map.of(
@@ -245,7 +229,7 @@ public class ContainerController {
                     emitter.complete();
                     schedule.shutdown();
                 } else {
-                    emitter.send(SseEmitter.event().name("ttl").data("STOPPED"));
+                    emitter.send(SseEmitter.event().name("ttl").data(ttl.toString()));
                 }
             } catch (Exception e) {
                 emitter.completeWithError(e);
@@ -267,12 +251,7 @@ public class ContainerController {
         }
 
         try {
-            ProcessBuilder rmPb = new ProcessBuilder(
-                    "docker", "rm", "-f", containerId
-            );
-
-            Process process = rmPb.start();
-            process.waitFor();
+            dockerClient.removeContainerCmd(containerId).exec();
 
             containerRepository.deleteById(containerId);
 
