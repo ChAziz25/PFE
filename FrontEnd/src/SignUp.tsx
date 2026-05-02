@@ -41,9 +41,7 @@ function SignUp() {
           <h1 className="text-xl font-semibold tracking-tight">
             create account
           </h1>
-          <p className="text-sm text-(--color-text-muted)">
-            get started for free
-          </p>
+          <p className="text-sm text-(--color-text-muted)">get started</p>
         </div>
 
         {/* Form Fields */}

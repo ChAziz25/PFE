@@ -1,6 +1,9 @@
 import { useEffect, useState } from "react";
 import Auth from "./Auth";
 
+import ollama from "./assets/ollama.svg";
+import gemini from "./assets/gemini.svg";
+
 function App() {
   const [theme, setTheme] = useState("dark");
   const [mode, setMode] = useState("resources");
@@ -18,6 +21,7 @@ function App() {
 
   const [command, setCommand] = useState("");
   const [output, setOutput] = useState("");
+  const [provider, setProvider] = useState("ollama");
 
   useEffect(() => {
     document.documentElement.dataset.theme = theme;
@@ -165,7 +169,7 @@ function App() {
         command,
         containerId,
         userId: user.id,
-        provider: command.startsWith("/ask") ? "ollama" : undefined,
+        provider: command.startsWith("/ask") ? provider : undefined,
       }),
     })
       .then((res) => res.json())
@@ -372,12 +376,21 @@ function App() {
               className="w-full h-40 p-3 rounded-lg bg-black text-green-400 font-mono text-sm border border-(--color-border)"
             />
 
-            <input
-              type="text"
-              placeholder="Enter command..."
-              onChange={(e) => setCommand(e.target.value)}
-              className="w-full px-3 py-2 rounded-lg border border-(--color-border) bg-(--color-bg-card) text-(--color-text-main) placeholder-(--color-text-muted) focus:outline-none focus:ring-2 focus:ring-(--color-focus) transition"
-            />
+            <div className="flex gap-2">
+              <input
+                type="text"
+                placeholder="Enter command..."
+                onChange={(e) => setCommand(e.target.value)}
+                className="w-3/4 px-3 py-2 rounded-lg border border-(--color-border) bg-(--color-bg-card) text-(--color-text-main) placeholder-(--color-text-muted) focus:outline-none focus:ring-2 focus:ring-(--color-focus) transition"
+              />
+              <select
+                onChange={(e) => setProvider(e.target.value)}
+                className="w-1/4 px-3 py-2 rounded-lg border border-(--color-border) bg-(--color-bg-card) text-(--color-text-main) focus:outline-none focus:ring-2 focus:ring-(--color-focus) transition"
+              >
+                <option value="ollama">Ollama</option>
+                <option value="gemini">Gemini</option>
+              </select>
+            </div>
 
             <div className="flex gap-2">
               <button

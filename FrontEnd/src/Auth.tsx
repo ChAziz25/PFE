@@ -16,7 +16,9 @@ export default function Auth() {
     <div className="fixed top-5 right-5">
       {user ? (
         <div className="flex items-center gap-3">
+          <Link to="/profile">
           <span className="text-sm">{user.name}</span>
+          </Link>
           <button
             onClick={handleLogout}
             className="bg-red-500 hover:bg-red-600 text-white rounded-full px-4 py-2 text-sm transition"

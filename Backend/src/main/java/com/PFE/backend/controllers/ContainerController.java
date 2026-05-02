@@ -4,6 +4,7 @@ import com.PFE.backend.models.Container;
 import com.PFE.backend.models.User;
 import com.PFE.backend.repositories.CommandRepository;
 import com.PFE.backend.repositories.ContainerRepository;
+import com.PFE.backend.repositories.UserRepository;
 import com.PFE.backend.services.*;
 
 import com.github.dockerjava.api.DockerClient;
@@ -11,6 +12,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 import tools.jackson.databind.ObjectMapper;
@@ -35,13 +37,14 @@ public class ContainerController {
     private final RedisService redisService;
     private final RedisTemplate<String, String> redisTemplate;
     private final DockerClient dockerClient;
+    private final UserRepository userRepository;
 
     private final Map<String, SseEmitter> emitters = new ConcurrentHashMap<>();
 
     @Autowired
     private final AiAgentService aiAgentService;
 
-    public ContainerController(ContainerService containerService, ContainerRepository containerRepository, CommandProducerService commandProducerService, CommandRepository commandRepository, StreamService streamService, RedisService redisService, RedisTemplate<String, String> redisTemplate, DockerClient dockerClient, AiAgentService aiAgentService) {
+    public ContainerController(ContainerService containerService, ContainerRepository containerRepository, CommandProducerService commandProducerService, CommandRepository commandRepository, StreamService streamService, RedisService redisService, RedisTemplate<String, String> redisTemplate, DockerClient dockerClient, UserRepository userRepository, AiAgentService aiAgentService) {
         this.containerService = containerService;
         this.containerRepository = containerRepository;
         this.commandProducerService = commandProducerService;
@@ -50,6 +53,7 @@ public class ContainerController {
         this.redisService = redisService;
         this.redisTemplate = redisTemplate;
         this.dockerClient = dockerClient;
+        this.userRepository = userRepository;
         this.aiAgentService = aiAgentService;
     }
 
@@ -100,7 +104,7 @@ public class ContainerController {
             String containerId = body.get("containerId");
             String command     = body.get("command");
             String userId      = body.get("userId");
-            String provider    = body.get("provider") != null ? body.get("provider") : "ollama";
+            String provider    = body.get("provider");
 
             if (command.startsWith("/ask")) {
                 String question = command.replaceFirst("^/ask(\\(\\w+\\))?\\s*", "");
@@ -240,7 +244,8 @@ public class ContainerController {
         return emitter;
     }
 
-    @PostMapping("/delete")
+    @DeleteMapping("/deleteContainer")
+    @Transactional
     public ResponseEntity<?> deleteContainer(@RequestBody Map<String, String> body){
         String containerId = body.get("containerId");
 
@@ -252,14 +257,21 @@ public class ContainerController {
 
         try {
             dockerClient.removeContainerCmd(containerId).exec();
+            Container container = containerRepository.findById(containerId)
+                    .orElseThrow(() -> new RuntimeException("Container not found in DB"));
 
-            containerRepository.deleteById(containerId);
+            User owner = container.getOwner();
+            owner.getContainers().remove(container);
+            userRepository.save(owner);
+
+            containerRepository.delete(container);
 
             return ResponseEntity.ok(Map.of(
                     "message", "container deleted",
                     "containerId", containerId
             ));
         } catch (Exception e) {
+            e.printStackTrace();
             return ResponseEntity.status(500).body(Map.of(
                     "error", e.getMessage()
             ));

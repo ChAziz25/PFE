@@ -17,12 +17,10 @@ public class User {
     private String email;
     private String password;
 
-    @OneToMany(mappedBy = "user", cascade = CascadeType.ALL)
-    private List<Agent> agents;
-    @OneToMany(mappedBy = "user", cascade = CascadeType.ALL)
+    @OneToMany(mappedBy = "user", cascade = CascadeType.ALL, fetch = FetchType.EAGER)
     private List<Secret> secrets;
 
-    @OneToMany(mappedBy = "owner", cascade = CascadeType.ALL)
+    @OneToMany(mappedBy = "owner", cascade = CascadeType.ALL, fetch = FetchType.EAGER)
     private List<Container> containers;
 
     private LocalDateTime createdAt;
@@ -31,12 +29,11 @@ public class User {
     public User(){}
 
     public User(
-            String name, String email, String password, List<Agent> agents, List<Secret> secrets
+            String name, String email, String password, List<Secret> secrets
     ) {
         this.name = name;
         this.email = email;
         this.password = password;
-        this.agents = agents;
         this.secrets = secrets;
     }
 
@@ -61,9 +58,6 @@ public class User {
 
     public String getPassword() { return password; }
     public void setPassword(String password) { this.password = password; }
-
-    public List<Agent> getAgents() { return agents; }
-    public void setAgents(List<Agent> agents) { this.agents = agents; }
 
     public List<Secret> getSecrets() { return secrets; }
     public void setSecrets(List<Secret> secrets) { this.secrets = secrets; }

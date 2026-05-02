@@ -1,5 +1,6 @@
 package com.PFE.backend.models;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import jakarta.persistence.*;
 
 import java.time.LocalDateTime;
@@ -16,6 +17,7 @@ public class Container {
 
     @ManyToOne
     @JoinColumn(name = "user_id")
+    @JsonIgnore
     private User owner;
 
     private LocalDateTime createdAt;

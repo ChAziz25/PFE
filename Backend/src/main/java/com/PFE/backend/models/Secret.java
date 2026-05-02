@@ -1,5 +1,6 @@
 package com.PFE.backend.models;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import jakarta.persistence.*;
 
 import java.time.LocalDateTime;
@@ -16,13 +17,17 @@ public class Secret {
 
     @ManyToOne
     @JoinColumn(name = "user_id")
+    @JsonIgnore
     private User user;
 
     private LocalDateTime createdAt;
 
-    public Secret(String name, String value) {
-        this.name = name;
+    public Secret(){}
+
+    public Secret(String name, String value, User user) {
+        this.name  = name;
         this.value = value;
+        this.user  = user;
     }
 
     @PrePersist
