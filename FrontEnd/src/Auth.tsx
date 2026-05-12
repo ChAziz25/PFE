@@ -13,15 +13,25 @@ export default function Auth() {
   };
 
   return (
-    <div className="fixed top-5 right-5">
+    <div className="fixed top-5 right-5 z-50">
       {user ? (
-        <div className="flex items-center gap-3">
-          <Link to="/profile">
-          <span className="text-sm">{user.name}</span>
+        <div className="flex items-center gap-2 bg-(--color-bg-card) border border-(--color-border-strong) rounded-xl px-3 py-1.5 shadow-card">
+          <Link to="/profile" className="flex items-center gap-2 group">
+            <div className="w-6 h-6 rounded-md bg-(--color-primary-light) border border-(--color-border-accent) flex items-center justify-center">
+              <span className="text-[10px] text-(--color-primary) font-mono font-semibold">
+                {user.name?.charAt(0).toUpperCase()}
+              </span>
+            </div>
+            <span className="font-mono text-xs text-(--color-text-muted) group-hover:text-(--color-text-main) transition-colors">
+              {user.name}
+            </span>
           </Link>
+
+          <div className="w-px h-4 bg-(--color-border-strong)" />
+
           <button
             onClick={handleLogout}
-            className="bg-red-500 hover:bg-red-600 text-white rounded-full px-4 py-2 text-sm transition"
+            className="font-mono text-xs text-(--color-error) hover:bg-(--color-error-bg) px-2 py-1 rounded-md transition-colors"
           >
             logout
           </button>
@@ -29,9 +39,9 @@ export default function Auth() {
       ) : (
         <Link
           to="/login"
-          className="bg-blue-500 hover:bg-blue-600 text-white rounded-full px-4 py-2 text-sm transition"
+          className="font-mono flex items-center gap-1.5 bg-(--color-primary) text-(--color-button-text) hover:opacity-90 rounded-xl px-4 py-2 text-xs font-semibold tracking-wider transition-all active:scale-[0.98]"
         >
-          sign in
+          sign in →
         </Link>
       )}
     </div>

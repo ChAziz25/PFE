@@ -9,14 +9,13 @@ import com.PFE.backend.repositories.UserRepository;
 import org.springframework.kafka.annotation.KafkaListener;
 import org.springframework.stereotype.Service;
 import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
-import tools.jackson.databind.ObjectMapper;
 
-import java.io.Console;
+import java.io.ByteArrayInputStream;
 import java.io.IOException;
+import java.io.InputStream;
+import java.nio.charset.StandardCharsets;
 import java.time.LocalDateTime;
 import java.util.Map;
-import java.util.Objects;
-import java.util.concurrent.CompletableFuture;
 
 @Service
 public class ResultConsumerService {
@@ -26,13 +25,15 @@ public class ResultConsumerService {
     private final StreamService streamService;
     private final RedisService redisService;
     private final UserRepository userRepository;
+    private final MinioService minioService;
 
-    public ResultConsumerService(CommandRepository commandRepository, ContainerRepository containerRepository, StreamService streamService, RedisService redisService, UserRepository userRepository) {
+    public ResultConsumerService(CommandRepository commandRepository, ContainerRepository containerRepository, StreamService streamService, RedisService redisService, UserRepository userRepository, MinioService minioService) {
         this.commandRepository = commandRepository;
         this.containerRepository = containerRepository;
         this.streamService = streamService;
         this.redisService = redisService;
         this.userRepository = userRepository;
+        this.minioService = minioService;
     }
 
     @KafkaListener(topics = "results", groupId = "spring-consumer")
@@ -79,6 +80,8 @@ public class ResultConsumerService {
         cmd.setOutput(output);
         commandRepository.save(cmd);
 
+        storeOutputInMinIO(commandId, output);
+
         SseEmitter emitter = streamService.emitters.get(commandId);
         if (emitter != null) {
             try {
@@ -90,6 +93,26 @@ public class ResultConsumerService {
         }
 
         System.out.println("Command " + commandId + " output: "+ output);
+    }
+
+    private void storeOutputInMinIO(String commandId, String output) {
+        try {
+            Command command = commandRepository.findById(commandId)
+                    .orElseThrow(() -> new RuntimeException("Command not found"));
+
+            Container container = containerRepository.findById(command.getContainerId())
+                    .orElseThrow(() -> new RuntimeException("Container not found"));
+
+            String user = container.getOwner().getName();
+
+            String filename = user + "/" + commandId + "_output.txt";
+            byte[] outputBytes = output.getBytes(StandardCharsets.UTF_8);
+            InputStream inputStream = new ByteArrayInputStream(outputBytes);
+
+            minioService.uploadFile(filename, inputStream, outputBytes.length);
+        } catch (Exception e) {
+            System.err.println("Error storing output in MinIO: " + e.getMessage());
+        }
     }
 
     private void consumeContainer(Map<String, Object> message) throws IOException {

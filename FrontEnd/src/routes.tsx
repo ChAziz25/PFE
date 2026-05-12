@@ -1,18 +1,26 @@
+import { lazy, Suspense } from "react";
 import { Routes, Route } from "react-router-dom";
-import App from "./App";
-import Login from "./Login";
-import SignUp from "./SignUp";
-import Profile from "./Profile";
+import useTheme from "./hooks/useTheme";
+import LoadingScreen from "./components/LoadingScreen";
 
-function routes() {
+const App = lazy(() => import("./App"));
+const Login = lazy(() => import("./Login"));
+const SignUp = lazy(() => import("./SignUp"));
+const Profile = lazy(() => import("./Profile"));
+
+function Routes_() {
+  useTheme();
+
   return (
-    <Routes>
-      <Route path="/" element={<App />} />
-      <Route path="/login" element={<Login />} />
-      <Route path="/signup" element={<SignUp />} />
-      <Route path="/profile" element={<Profile />} />
-    </Routes>
+    <Suspense fallback={<LoadingScreen />}>
+      <Routes>
+        <Route path="/" element={<App />} />
+        <Route path="/login" element={<Login />} />
+        <Route path="/signup" element={<SignUp />} />
+        <Route path="/profile" element={<Profile />} />
+      </Routes>
+    </Suspense>
   );
 }
 
-export default routes;
+export default Routes_;

@@ -40,3 +40,9 @@ spring:
 
   application:
     name: backend
+
+minio:
+  endpoint: http://localhost:9000
+  accessKey: sandbox
+  secretKey: sandbox123
+  bucket: sandbox-outputs

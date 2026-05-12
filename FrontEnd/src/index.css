@@ -1,51 +1,108 @@
 @import "tailwindcss";
+@import url("https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600&family=Sora:wght@300;400;500;600&display=swap");
 
 :root {
-  /* Primary */
-  --color-primary: #2563eb;
-  --color-primary-hover: #1d4ed8;
-  --color-primary-light: #3b82f6;
+  --color-primary: #00d4ff;
+  --color-primary-hover: #00b8e0;
+  --color-primary-light: rgba(0, 212, 255, 0.12);
+  --color-primary-glow: rgba(0, 212, 255, 0.25);
 
-  /* Backgrounds */
-  --color-bg-main: #f3f4f6;
+  --color-bg-main: #f0f4f8;
   --color-bg-card: #ffffff;
-  --color-bg-muted: #f9fafb;
+  --color-bg-muted: #f7f9fc;
+  --color-bg-glass: rgba(255, 255, 255, 0.7);
 
-  /* Text */
-  --color-text-main: #111827;
+  --color-text-main: #0d1117;
   --color-text-secondary: #374151;
   --color-text-muted: #6b7280;
 
-  /* Borders */
-  --color-border: #e5e7eb;
-  --color-border-strong: #d1d5db;
+  --color-border: rgba(0, 0, 0, 0.08);
+  --color-border-strong: rgba(0, 0, 0, 0.15);
+  --color-border-accent: rgba(0, 212, 255, 0.3);
 
-  /* States */
-  --color-success: #16a34a;
+  --color-success: #00c896;
+  --color-success-bg: rgba(0, 200, 150, 0.1);
   --color-warning: #f59e0b;
-  --color-error: #dc2626;
+  --color-error: #ff4d6d;
+  --color-error-bg: rgba(255, 77, 109, 0.1);
 
-  /* Focus */
-  --color-focus: #3b82f6;
+  --color-focus: #00d4ff;
+  --color-button-text: #0d1117;
 
-  /* Button */
-  --color-button-text: #ffffff;
+  --font-ui: "Sora", sans-serif;
+  --font-mono: "JetBrains Mono", monospace;
 }
 
 [data-theme="dark"] {
-  --color-bg-main: #111827;
-  --color-bg-card: #1f2937;
-  --color-bg-muted: #374151;
+  --color-bg-main: #080c10;
+  --color-bg-card: #0d1117;
+  --color-bg-muted: #111820;
+  --color-bg-glass: rgba(13, 17, 23, 0.8);
 
-  --color-text-main: #f9fafb;
-  --color-text-secondary: #e5e7eb;
-  --color-text-muted: #9ca3af;
+  --color-text-main: #e6edf3;
+  --color-text-secondary: #8b949e;
+  --color-text-muted: #484f58;
 
-  --color-border: #374151;
-  --color-border-strong: #4b5563;
+  --color-border: rgba(255, 255, 255, 0.06);
+  --color-border-strong: rgba(255, 255, 255, 0.12);
+  --color-border-accent: rgba(0, 212, 255, 0.2);
+
+  --color-button-text: #080c10;
+
+  --color-success-bg: rgba(0, 200, 150, 0.08);
+  --color-error-bg: rgba(255, 77, 109, 0.08);
+}
+
+* {
+  font-family: var(--font-ui);
 }
 
 button,
-select {
+select,
+input,
+textarea {
   cursor: pointer;
+  font-family: var(--font-ui);
+}
+
+@utility grid-texture {
+  background-image:
+    linear-gradient(var(--color-border) 1px, transparent 1px),
+    linear-gradient(90deg, var(--color-border) 1px, transparent 1px);
+  background-size: 40px 40px;
+}
+
+@utility cyan-orb {
+  width: 600px;
+  height: 600px;
+  background: radial-gradient(
+    circle,
+    rgba(0, 212, 255, 0.06) 0%,
+    transparent 70%
+  );
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -60%);
+}
+
+@utility shadow-card {
+  box-shadow: var(--shadow-card);
+}
+@utility shadow-panel {
+  box-shadow: var(--shadow-panel);
+}
+
+@keyframes slide-in {
+  from {
+    opacity: 0;
+    transform: translateX(24px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+@utility animate-slide-in {
+  animation: slide-in 0.25s cubic-bezier(0.4, 0, 0.2, 1) forwards;
 }
