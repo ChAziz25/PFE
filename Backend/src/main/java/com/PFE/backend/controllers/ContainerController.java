@@ -66,12 +66,11 @@ public class ContainerController {
             double cpu = Double.parseDouble(body.get("cpu").toString());
             User user = mapper.convertValue(body.get("user"), User.class);
 
-            String requestId = "cmd-" + UUID.randomUUID();
-            containerService.runContainer(memory, cpu, requestId, user);
+            String containerId = containerService.runContainer(memory, cpu, user);
 
             return ResponseEntity.ok(Map.of(
                     "message", "container started",
-                    "requestedId", requestId
+                    "containerId", containerId
             ));
         } catch (Exception e) {
             return ResponseEntity.status(500).body(Map.of(
@@ -166,10 +165,15 @@ public class ContainerController {
         }
 
         try {
-            dockerClient.startContainerCmd(containerId).exec();
-
             Container container = containerRepository.findById(containerId).orElse(null);
             if (container != null) {
+
+                if (container.getStatus().equals("STOPPED")) {
+                    dockerClient.startContainerCmd(containerId).exec();
+                }else if (container.getStatus().equals("PAUSED")) {
+                    dockerClient.unpauseContainerCmd(containerId).exec();
+                }
+
                 container.setLastStartedAt(LocalDateTime.now());
                 container.setLastUsed(LocalDateTime.now());
                 redisService.setContainerTTL(containerId);

@@ -62,28 +62,6 @@ function App() {
     }, 500);
   }
 
-  function StartContainerStream(requestId: string) {
-    const eventSource = new EventSource(
-      `http://localhost:8080/api/containers/stream?requestId=${requestId}`,
-    );
-
-    eventSource.onmessage = (event) => {
-      const data = JSON.parse(event.data);
-
-      console.log("Container Ready:", data);
-
-      setContainerId(data.containerId);
-      startStatusStream(data.containerId);
-
-      eventSource.close();
-    };
-
-    eventSource.onerror = (err) => {
-      console.log("SSE error:", err);
-      eventSource.close();
-    };
-  }
-
   // Function to run the container
   function RunContainer() {
     authCheck();
@@ -121,7 +99,8 @@ function App() {
       .then((data) => {
         console.log("Response:", data);
         setContainerIsRunning(true);
-        StartContainerStream(data.requestedId);
+        setContainerId(data.containerId);
+        startStatusStream(data.containerId);
       })
       .catch((error) => console.error("Error:", error));
   }
