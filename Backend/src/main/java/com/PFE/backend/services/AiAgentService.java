@@ -19,15 +19,15 @@ public class AiAgentService {
     @Autowired
     private Map<String, AiProvider> providers;
 
-    public String ask(String provider, String question, String userId) {
+    public String ask(String provider, String question, String userId, String containerId) {
         AiProvider ai = providers.get(provider);
         if (ai == null) return "Provider not found: " + provider;
 
-        if (provider.equals("ollama")) return ai.ask(question, null);
+        if (provider.equals("ollama")) return ai.ask(question, null, containerId);
 
         String apiKey = secretRepository.findByUserIdAndName(userId, provider.toUpperCase()+"_API_KEY")
                 .map(Secret::getValue)
                 .orElseThrow(() -> new RuntimeException("No API key found for " + provider));
-        return ai.ask(question, apiKey);
+        return ai.ask(question, apiKey, containerId);
     }
 }

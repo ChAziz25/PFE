@@ -26,14 +26,16 @@ public class ResultConsumerService {
     private final RedisService redisService;
     private final UserRepository userRepository;
     private final MinioService minioService;
+    private final PendingResultService pendingResultService;
 
-    public ResultConsumerService(CommandRepository commandRepository, ContainerRepository containerRepository, StreamService streamService, RedisService redisService, UserRepository userRepository, MinioService minioService) {
+    public ResultConsumerService(CommandRepository commandRepository, ContainerRepository containerRepository, StreamService streamService, RedisService redisService, UserRepository userRepository, MinioService minioService, PendingResultService pendingResultService) {
         this.commandRepository = commandRepository;
         this.containerRepository = containerRepository;
         this.streamService = streamService;
         this.redisService = redisService;
         this.userRepository = userRepository;
         this.minioService = minioService;
+        this.pendingResultService = pendingResultService;
     }
 
     @KafkaListener(topics = "results", groupId = "spring-consumer")
@@ -55,6 +57,7 @@ public class ResultConsumerService {
     private void consumeCommands(Map<String, Object> message){
         String commandId = (String) message.get("commandId");
         String output    = (String) message.get("output");
+        String source    = (String) message.get("source");
 
         Command cmd = commandRepository.findById(commandId).orElse(null);
 
@@ -82,13 +85,17 @@ public class ResultConsumerService {
 
         storeOutputInMinIO(commandId, output);
 
-        SseEmitter emitter = streamService.emitters.get(commandId);
-        if (emitter != null) {
-            try {
-                emitter.send(SseEmitter.event().data(output));
-                emitter.complete();
-            } catch (IOException e) {
-                emitter.completeWithError(e);
+        if ("AI".equals(source)){
+            pendingResultService.complete(commandId, output);
+        }else {
+            SseEmitter emitter = streamService.emitters.get(commandId);
+            if (emitter != null) {
+                try {
+                    emitter.send(SseEmitter.event().data(output));
+                    emitter.complete();
+                } catch (IOException e) {
+                    emitter.completeWithError(e);
+                }
             }
         }
 

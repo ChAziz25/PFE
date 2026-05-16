@@ -106,6 +106,7 @@ for message in consumer:
         command_ID = data.get("commandId")
         container_ID = data.get("targetContainerId")
         command = data.get("command")
+        source = data.get("source")
 
         print(f"> Executing command {command} on container {container_ID}")
         output = execute(container_ID, command)
@@ -114,6 +115,7 @@ for message in consumer:
             "type": msg_type,
             "commandId": command_ID,
             "output": output,
+            "source": source
         }
     else:
         response = {

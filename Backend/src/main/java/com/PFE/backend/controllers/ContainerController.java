@@ -108,11 +108,11 @@ public class ContainerController {
 
             if (command.startsWith("/ask")) {
                 String question = command.replaceFirst("^/ask(\\(\\w+\\))?\\s*", "");
-                String aiResponse = aiAgentService.ask(provider, question, userId);
+                String aiResponse = aiAgentService.ask(provider, question, userId, containerId);
                 return ResponseEntity.ok(Map.of("response", aiResponse, "type", "ai"));
             }
 
-            String commandId = commandProducerService.sendCommand(containerId, command);
+            String commandId = commandProducerService.sendCommand(containerId, command, "USER");
 
             Container container = containerRepository.findById(containerId).orElse(null);
             if (container != null) {

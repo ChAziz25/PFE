@@ -18,7 +18,7 @@ public class CommandProducerService {
         this.commandRepository = commandRepository;
     }
 
-    public String sendCommand(String containerId, String command) {
+    public String sendCommand(String containerId, String command, String source) {
         String commandId = UUID.randomUUID().toString();
 
         Command cmd = new Command();
@@ -32,7 +32,8 @@ public class CommandProducerService {
                 "type", "EXECUTE_COMMAND",
                 "commandId", commandId,
                 "command", command,
-                "targetContainerId", containerId
+                "targetContainerId", containerId,
+                "source", source
         );
 
         kafkaTemplate.send("commands", payload);
