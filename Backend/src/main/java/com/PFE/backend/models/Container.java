@@ -4,6 +4,7 @@ import com.fasterxml.jackson.annotation.JsonIgnore;
 import jakarta.persistence.*;
 
 import java.time.LocalDateTime;
+import java.util.List;
 
 @Entity
 @Table(name = "Containers")
@@ -19,6 +20,9 @@ public class Container {
     @JoinColumn(name = "user_id")
     @JsonIgnore
     private User owner;
+
+    @ManyToMany(mappedBy = "containers")
+    private List<Tool> tools;
 
     private LocalDateTime createdAt;
     private LocalDateTime lastStartedAt;
@@ -54,6 +58,9 @@ public class Container {
 
     public User getOwner() { return owner; }
     public void setOwner(User owner) { this.owner = owner; }
+
+    public List<Tool> getTools() { return tools; }
+    public void setTools(List<Tool> tools) { this.tools = tools; }
 
     public void setLastStartedAt(LocalDateTime lastStartedAt) { this.lastStartedAt = lastStartedAt; }
     public void setLastUsed(LocalDateTime lastUsed) { this.lastUsed = lastUsed; }

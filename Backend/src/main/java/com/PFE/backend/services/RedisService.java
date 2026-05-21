@@ -17,7 +17,7 @@ public class RedisService {
         redisTemplate.opsForValue().set(
                 "container:" + containerId,
                 "active",
-                Duration.ofMinutes(1)
+                Duration.ofMinutes(15)
         );
     }
 }

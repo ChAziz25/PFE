@@ -45,6 +45,10 @@ public class ResultConsumerService {
         String type = (String) message.get("type");
         if (type.equals("EXECUTE_COMMAND")){
             consumeCommands(message);
+        } else if (type.equals("NEW_TOOL")){
+            System.out.println("[Tool deployed] " + message.get("script_type"));
+        } else {
+            System.out.println("[Unknown message type] " + type);
         }
     }
 

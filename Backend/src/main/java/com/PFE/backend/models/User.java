@@ -23,6 +23,9 @@ public class User {
     @OneToMany(mappedBy = "owner", cascade = CascadeType.ALL, fetch = FetchType.EAGER)
     private List<Container> containers;
 
+    @OneToMany(mappedBy = "user", cascade = CascadeType.ALL, fetch = FetchType.EAGER)
+    private List<Tool> tools;
+
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
 
@@ -48,6 +51,9 @@ public class User {
         createdAt = LocalDateTime.now();
     }
 
+    @PreUpdate
+    protected void onUpdate() { updatedAt = LocalDateTime.now(); }
+
     public String getId() { return id; }
 
     public String getName() { return name; }
@@ -64,6 +70,9 @@ public class User {
 
     public List<Container> getContainers() { return containers; }
     public void setContainers(List<Container> containers) { this.containers = containers; }
+
+    public List<Tool> getTools(){ return tools; }
+    public void setTools(List<Tool> tools) {this.tools = tools; }
 
     public LocalDateTime getCreatedAt() { return createdAt; }
 

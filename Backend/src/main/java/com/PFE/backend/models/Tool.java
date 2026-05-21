@@ -7,8 +7,8 @@ import java.time.LocalDateTime;
 import java.util.List;
 
 @Entity
-@Table(name = "Tools")
-public class Tools {
+@Table(name = "Tool")
+public class Tool {
 
     @Id
     @GeneratedValue(strategy = GenerationType.UUID)
@@ -16,6 +16,8 @@ public class Tools {
 
     @Column(columnDefinition = "TEXT")
     private String script;
+
+    private String type;
 
     @ManyToOne
     @JoinColumn(name = "user_id")
@@ -28,15 +30,17 @@ public class Tools {
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
 
-    public Tools(){}
+    public Tool(){}
 
-    public Tools(String script, User user){
+    public Tool(String script, String type, User user){
         this.script = script;
+        this.type = type;
         this.user = user;
     }
 
-    public Tools(String script, User user, List<Container> container){
+    public Tool(String script, String type, User user, List<Container> container){
         this.script = script;
+        this.type = type;
         this.user = user;
         this.containers = container;
     }
@@ -45,6 +49,9 @@ public class Tools {
     protected void onCreate(){
         createdAt = LocalDateTime.now();
     }
+
+    @PreUpdate
+    protected void onUpdate() { updatedAt = LocalDateTime.now(); }
 
     public String getId(){ return id; }
 

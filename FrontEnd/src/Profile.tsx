@@ -1,5 +1,4 @@
 import { useEffect, useState } from "react";
-import { Link } from "react-router-dom";
 import ThemeToggle from "./ThemeToggle";
 import BackButton from "./BackButton";
 import Empty from "./components/Empty";
@@ -24,11 +23,22 @@ export default function ProfilePage() {
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
 
+  const [toolScript, setToolScript] = useState("");
+  const [selectedContainers, setSelectedContainers] = useState<string[]>([]);
+  const [dropdownOpen, setDropdownOpen] = useState(false);
+  const [scriptType, setScriptType] = useState("python");
+
   useEffect(() => {
     authCheck();
     document.documentElement.dataset.theme = theme;
     getuserData();
   }, [theme]);
+
+  function toggleContainer(id: string) {
+    setSelectedContainers((prev) =>
+      prev.includes(id) ? prev.filter((c) => c !== id) : [...prev, id],
+    );
+  }
 
   function authCheck(): boolean {
     const user = localStorage.getItem("user");
@@ -48,8 +58,8 @@ export default function ProfilePage() {
       .then((res) => res.json())
       .then((data) => {
         console.log(data);
-        setSecrets(data.secrets);
-        setContainers(data.containers);
+        setSecrets(data.secrets || []);
+        setContainers(data.containers || []);
       })
       .catch((error) => {
         console.error("Error:", error);
@@ -118,6 +128,28 @@ export default function ProfilePage() {
       });
   }
 
+  function addTool(){
+    fetch("http://localhost:8080/api/addTool", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        userId: user.id,
+        script: toolScript,
+        type: scriptType,
+        containers: selectedContainers,
+      }),
+    })
+      .then((response) => response.json())
+      .then((data) => {
+        console.log(data);
+      })
+      .catch((error) => {
+        console.error("Error:", error);
+      });
+  }
+
   return (
     <div className="relative flex flex-col items-center justify-center min-h-screen w-screen p-6 overflow-hidden bg-(--color-bg-main) text-(--color-text-main)">
       {/* Grid texture */}
@@ -157,30 +189,30 @@ export default function ProfilePage() {
         {/* Tab toggle */}
         <div className="relative flex w-full items-center rounded-[10px] bg-(--color-bg-muted) border border-(--color-border) p-1">
           <div
-            className={`absolute inset-y-1 left-1 w-[calc(50%-4px)] rounded-[7px] bg-(--color-bg-card) border border-(--color-border-strong) shadow-sm transition-all duration-300 ease-in-out ${
-              tab === "settings" ? "translate-x-full" : ""
+            className={`absolute inset-y-1 left-1 w-[calc(33.33%-5px)] rounded-[7px] bg-(--color-bg-card) border border-(--color-border-strong) shadow-sm transition-all duration-300 ease-in-out ${
+              tab === "info"
+                ? "translate-x-0"
+                : tab === "settings"
+                  ? "translate-x-[calc(100%+4px)]"
+                  : "translate-x-[calc(200%+8px)]"
             }`}
           />
-          {["info", "settings"].map((t) => (
-            <label
+          {["info", "settings", "tools"].map((t) => (
+            <button
               key={t}
+              type="button"
+              onClick={() => {
+                setTab(t);
+                setIsUpdated(false);
+              }}
               className={`font-mono relative z-10 flex flex-1 cursor-pointer items-center justify-center py-1.5 text-xs tracking-wider transition-colors duration-200 ${
                 tab === t
                   ? "text-(--color-text-main) font-semibold"
                   : "text-(--color-text-muted)"
               }`}
             >
-              <input
-                type="radio"
-                className="sr-only"
-                checked={tab === t}
-                onChange={() => {
-                  setTab(t);
-                  setIsUpdated(false);
-                }}
-              />
               {t}
-            </label>
+            </button>
           ))}
         </div>
 
@@ -329,6 +361,106 @@ export default function ProfilePage() {
           </div>
         )}
 
+        {/* Tools tab */}
+        {tab === "tools" && (
+          <div className="flex flex-col gap-4">
+            <p className="font-mono text-[11px] text-(--color-text-muted) uppercase tracking-widest m-0">
+              Add Tools
+            </p>
+
+            {/* Container selector */}
+            <div className="flex flex-col gap-1.5 relative">
+              <label className="font-mono text-[11px] text-(--color-text-muted) uppercase tracking-widest">
+                Target Containers
+              </label>
+              <button
+                type="button"
+                onClick={() => setDropdownOpen((prev) => !prev)}
+                className="font-mono w-full px-3 py-2.5 text-[13px] bg-(--color-bg-muted) border border-(--color-border) rounded-lg text-(--color-text-main) text-left focus:outline-none focus:ring-2 focus:ring-(--color-focus) focus:border-(--color-border-accent) transition"
+              >
+                {selectedContainers.length === 0
+                  ? "select containers..."
+                  : `${selectedContainers.length} container(s) selected`}
+              </button>
+
+              {dropdownOpen && (
+                <div className="absolute top-full left-0 right-0 z-20 mt-1 bg-(--color-bg-card) border border-(--color-border-strong) rounded-lg shadow-card overflow-hidden">
+                  {containers.length === 0 ? (
+                    <p className="font-mono text-[12px] text-(--color-text-muted) px-3 py-2">
+                      no containers found
+                    </p>
+                  ) : (
+                    containers.map((container) => (
+                      <div
+                        key={container.id}
+                        onClick={() => toggleContainer(container.id)}
+                        className="flex items-center gap-3 px-3 py-2 cursor-pointer hover:bg-(--color-bg-muted) transition"
+                      >
+                        <div
+                          className={`w-3.5 h-3.5 rounded border flex items-center justify-center shrink-0 transition ${
+                            selectedContainers.includes(container.id)
+                              ? "bg-(--color-primary) border-(--color-primary)"
+                              : "border-(--color-border-strong)"
+                          }`}
+                        >
+                          {selectedContainers.includes(container.id) && (
+                            <svg
+                              width="8"
+                              height="8"
+                              viewBox="0 0 8 8"
+                              fill="none"
+                            >
+                              <path
+                                d="M1 4L3 6L7 2"
+                                stroke="white"
+                                strokeWidth="1.5"
+                                strokeLinecap="round"
+                                strokeLinejoin="round"
+                              />
+                            </svg>
+                          )}
+                        </div>
+                        <span className="font-mono text-[13px] text-(--color-text-main)">
+                          {container.name}
+                        </span>
+                      </div>
+                    ))
+                  )}
+                </div>
+              )}
+            </div>
+
+            <div className="flex flex-col gap-1.5">
+              <textarea
+                value={toolScript}
+                onChange={(e) => {
+                  setToolScript(e.target.value);
+                }}
+                placeholder="// Write your tool script here..."
+                rows={14}
+                className="font-mono w-full px-3 py-2.5 text-[13px] bg-(--color-bg-muted) border border-(--color-border) rounded-lg text-(--color-text-main) placeholder-(--color-text-muted) focus:outline-none focus:ring-2 focus:ring-(--color-focus) focus:border-(--color-border-accent) transition resize-none leading-relaxed"
+              />
+            </div>
+
+            <div className="flex gap-2">
+              <button
+                onClick={addTool}
+                className="font-mono flex-1 py-2.5 bg-(--color-primary) text-(--color-button-text) rounded-lg text-[13px] font-semibold tracking-wider transition active:scale-[0.985] hover:opacity-90"
+              >
+                submit tool →
+              </button>
+
+              <select
+                value={scriptType}
+                onChange={(e) => setScriptType(e.target.value)}
+                className="font-mono px-3 py-2.5 text-[13px] bg-(--color-bg-muted) border border-(--color-border) rounded-lg text-(--color-text-main) focus:outline-none focus:ring-2 focus:ring-(--color-focus) focus:border-(--color-border-accent) transition"
+              >
+                <option value="python">python</option>
+                <option value="bash">bash</option>
+              </select>
+            </div>
+          </div>
+        )}
         {/* Divider */}
         <div className="h-px bg-(--color-border) -mx-7" />
 
