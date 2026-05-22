@@ -14,10 +14,13 @@ import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.multipart.MultipartFile;
 import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 import tools.jackson.databind.ObjectMapper;
 
 import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
@@ -278,6 +281,30 @@ public class ContainerController {
             return ResponseEntity.status(500).body(Map.of(
                     "error", e.getMessage()
             ));
+        }
+    }
+
+    @PostMapping("/uploadFile")
+    public ResponseEntity<?> uploadFile(
+            @RequestParam("file") MultipartFile file,
+            @RequestParam("containerId") String containerId) {
+        try {
+            Path tempFile = Files.createTempFile("upload_", "_" + file.getOriginalFilename());
+            file.transferTo(tempFile);
+
+            dockerClient.copyArchiveToContainerCmd(containerId)
+                    .withHostResource(tempFile.toAbsolutePath().toString())
+                    .withRemotePath("/workspace/")
+                    .exec();
+
+            Files.deleteIfExists(tempFile);
+
+            return ResponseEntity.ok(Map.of(
+                    "message", "File uploaded successfully",
+                    "filename", file.getOriginalFilename()
+            ));
+        } catch (Exception e) {
+            return ResponseEntity.status(500).body(Map.of("error", e.getMessage()));
         }
     }
 }

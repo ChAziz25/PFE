@@ -248,6 +248,22 @@ function App() {
       .catch((error) => console.error("Error:", error));
   }
 
+  function handleFileUpload(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    const formData = new FormData();
+    formData.append("file", file);
+
+    fetch(`http://localhost:8080/api/uploadFile?containerId=${containerId}`, {
+      method: "POST",
+      body: formData,
+    })
+      .then((res) => res.json())
+      .then((data) => console.log("Response:", data))
+      .catch((error) => console.error("Error:", error));
+  }
+
   return (
     <div className="relative flex flex-col items-center justify-center min-h-screen w-screen p-6 overflow-hidden bg-(--color-bg-main) text-(--color-text-main)">
       {/* Grid texture */}
@@ -425,6 +441,25 @@ function App() {
                 onChange={(e) => setCommand(e.target.value)}
                 className="font-mono flex-1 px-4 py-2.5 text-[13px] bg-(--color-bg-muted) border border-(--color-border) rounded-lg text-(--color-text-main) placeholder-(--color-text-muted) focus:outline-none focus:ring-2 focus:ring-(--color-focus) focus:border-(--color-border-accent) transition"
               />
+              <label className="font-mono w-6 py-3  text-(--color-text-muted) text-[13px] font-semibold tracking-wider transition hover:bg-(--color-bg-card) active:scale-[0.98] cursor-pointer text-center">
+                <svg
+                  width="16"
+                  height="16"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                >
+                  <path d="M21.44 11.05l-9.19 9.19a6 6 0 01-8.49-8.49l9.19-9.19a4 4 0 015.66 5.66l-9.2 9.19a2 2 0 01-2.83-2.83l8.49-8.48" />
+                </svg>
+                <input
+                  type="file"
+                  className="sr-only"
+                  onChange={handleFileUpload}
+                />
+              </label>
               <select
                 onChange={(e) => setProvider(e.target.value)}
                 className="font-mono w-[110px] px-3 py-2.5 text-[13px] bg-(--color-bg-muted) border border-(--color-border) rounded-lg text-(--color-text-main) focus:outline-none focus:ring-2 focus:ring-(--color-focus) transition"
