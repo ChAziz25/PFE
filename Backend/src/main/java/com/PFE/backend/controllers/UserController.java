@@ -1,14 +1,12 @@
 package com.PFE.backend.controllers;
 
-import com.PFE.backend.models.Container;
-import com.PFE.backend.models.Secret;
-import com.PFE.backend.models.Tool;
-import com.PFE.backend.models.User;
+import com.PFE.backend.models.*;
 import com.PFE.backend.repositories.ContainerRepository;
 import com.PFE.backend.repositories.SecretRepository;
 import com.PFE.backend.repositories.ToolsRepository;
 import com.PFE.backend.repositories.UserRepository;
 import com.PFE.backend.services.UserService;
+import com.github.dockerjava.api.DockerClient;
 import org.springframework.http.ResponseEntity;
 import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.transaction.annotation.Transactional;
@@ -27,14 +25,16 @@ public class UserController {
     private final ContainerRepository containerRepository;
     private final ToolsRepository toolsRepository;
     private final KafkaTemplate<String, Object> kafkaTemplate;
+    private final DockerClient dockerClient;
 
-    public UserController(UserService userService, UserRepository userRepository, SecretRepository secretRepository, ContainerRepository containerRepository, ToolsRepository toolsRepository, KafkaTemplate<String, Object> kafkaTemplate) {
+    public UserController(UserService userService, UserRepository userRepository, SecretRepository secretRepository, ContainerRepository containerRepository, ToolsRepository toolsRepository, KafkaTemplate<String, Object> kafkaTemplate, DockerClient dockerClient) {
         this.userService = userService;
         this.userRepository = userRepository;
         this.secretRepository = secretRepository;
         this.containerRepository = containerRepository;
         this.toolsRepository = toolsRepository;
         this.kafkaTemplate = kafkaTemplate;
+        this.dockerClient = dockerClient;
     }
 
     @PostMapping("/register")
@@ -76,7 +76,8 @@ public class UserController {
                     "message", "Login successful",
                     "id", user.getId(),
                     "name", user.getName(),
-                    "email", user.getEmail()
+                    "email", user.getEmail(),
+                    "role", user instanceof ScrumMaster ? "SCRUM_MASTER" : "USER"
             ));
 
         } catch (Exception e) {
@@ -100,6 +101,35 @@ public class UserController {
                         "status", c.getStatus()
                 )).toList()
         ))).orElseGet(() -> ResponseEntity.status(404).body(Map.of("error", "user not found")));
+    }
+
+    @PutMapping("/updateProfile")
+    public ResponseEntity<?> updateProfile(@RequestBody Map<String, Object> body) {
+        try {
+            String userId = body.get("userId").toString();
+
+            User user = userRepository.findById(userId)
+                    .orElseThrow(() -> new RuntimeException("User not found"));
+
+            if (body.containsKey("name"))
+                user.setName(body.get("name").toString());
+
+            if (body.containsKey("email"))
+                user.setEmail(body.get("email").toString());
+
+            if (body.containsKey("password"))
+                user.setPassword(body.get("password").toString());
+
+            userRepository.save(user);
+
+            return ResponseEntity.ok(Map.of(
+                    "message", "Profile updated successfully",
+                    "name", user.getName(),
+                    "email", user.getEmail()
+            ));
+        } catch (Exception e) {
+            return ResponseEntity.status(500).body(Map.of("error", e.getMessage()));
+        }
     }
 
     @PostMapping("/addSecret")
@@ -205,5 +235,46 @@ public class UserController {
                     "error", e.getMessage()
             ));
         }
+    }
+
+    @DeleteMapping("/deleteUser")
+    @Transactional
+    public ResponseEntity<?> deleteUser(@RequestBody Map<String, String> body) {
+        String userId = body.get("userId");
+
+        if (userId == null || userId.isEmpty()) {
+            return ResponseEntity.badRequest().body(Map.of(
+                    "error", "containerId is required"
+            ));
+        }
+
+        try {
+            User user = userRepository.findById(userId).orElseThrow(() -> new RuntimeException("User not found in DB"));
+            String containerId = "";
+            for (Container container : user.getContainers()) {
+                containerId = container.getId();
+                if (!containerId.isEmpty())
+                    dockerClient.removeContainerCmd(containerId).exec();
+            }
+            userRepository.delete(user);
+            return ResponseEntity.ok(Map.of(
+                    "message", "container deleted",
+                    "containerId", containerId
+            ));
+        } catch (Exception e) {
+            e.printStackTrace();
+            return ResponseEntity.status(500).body(Map.of(
+                    "error", e.getMessage()
+            ));
+        }
+    }
+
+    @GetMapping("/users")
+    public ResponseEntity<?> getUsers() {
+        List<User> users = userRepository.findAll();
+        return ResponseEntity.ok(Map.of("users", users.stream()
+                .filter(u -> !(u instanceof ScrumMaster))
+                .map(u -> Map.of("id", u.getId(), "name", u.getName()))
+                .toList()));
     }
 }

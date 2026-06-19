@@ -4,6 +4,7 @@ import Auth from "./Auth";
 import ThemeToggle from "./ThemeToggle";
 import useTheme from "./hooks/useTheme";
 import Empty from "./components/Empty";
+import TaskPanel from "./TaskPanel";
 
 function App() {
   const { theme, toggleTheme } = useTheme();
@@ -141,6 +142,11 @@ function App() {
     const user = JSON.parse(userRaw);
     if (!user.id) {
       setOutput((prev) => prev + "Please log in first.\n");
+      return;
+    }
+
+    if (command === "cl" || command === "clear") {
+      setOutput("");
       return;
     }
 
@@ -487,6 +493,8 @@ function App() {
           </div>
         )}
       </div>
+      {/* Tasks section */}
+      <TaskPanel />
     </div>
   );
 }

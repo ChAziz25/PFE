@@ -9,6 +9,8 @@ function Login() {
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
 
+  const [role, setRole] = useState("USER");
+
   useEffect(() => {
     document.documentElement.dataset.theme = theme;
   }, [theme]);
@@ -28,8 +30,12 @@ function Login() {
         return res.json();
       })
       .then((data) => {
+        if (data.role !== role) {
+          setError("account type mismatch");
+          return;
+        }
         localStorage.setItem("user", JSON.stringify(data));
-        window.location.href = "/";
+        window.location.href = role === "SCRUM_MASTER" ? "/sm-dashboard" : "/";
       })
       .catch((error) => {
         setError(error.message);
@@ -75,6 +81,23 @@ function Login() {
           <p className="font-mono text-[11px] text-(--color-text-muted) uppercase tracking-widest m-0">
             Credentials
           </p>
+
+          {/* Role selector */}
+          <div className="flex rounded-lg overflow-hidden border border-(--color-border) font-mono text-[12px]">
+            {["USER", "SCRUM_MASTER"].map((r) => (
+              <button
+                key={r}
+                onClick={() => setRole(r)}
+                className={`flex-1 py-2 transition ${
+                  role === r
+                    ? "bg-(--color-primary) text-(--color-button-text) font-semibold"
+                    : "bg-(--color-bg-muted) text-(--color-text-muted)"
+                }`}
+              >
+                {r === "USER" ? "user" : "scrum master"}
+              </button>
+            ))}
+          </div>
 
           {[
             {

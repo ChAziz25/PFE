@@ -9,6 +9,7 @@ import com.PFE.backend.services.*;
 
 import com.github.dockerjava.api.DockerClient;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
@@ -21,6 +22,7 @@ import tools.jackson.databind.ObjectMapper;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
@@ -42,6 +44,10 @@ public class ContainerController {
     private final UserRepository userRepository;
 
     private final Map<String, SseEmitter> emitters = new ConcurrentHashMap<>();
+
+
+    @Value("${app.upload-dir}")
+    private String uploadDir;
 
     @Autowired
     private final AiAgentService aiAgentService;
@@ -289,15 +295,17 @@ public class ContainerController {
             @RequestParam("file") MultipartFile file,
             @RequestParam("containerId") String containerId) {
         try {
-            Path tempFile = Files.createTempFile("upload_", "_" + file.getOriginalFilename());
-            file.transferTo(tempFile);
+            String originalFilename = file.getOriginalFilename();
+
+            Path saveDir = Paths.get(uploadDir).toAbsolutePath().normalize();
+            Files.createDirectories(saveDir);
+            Path savedFile = saveDir.resolve(originalFilename);
+            file.transferTo(savedFile.toFile());
 
             dockerClient.copyArchiveToContainerCmd(containerId)
-                    .withHostResource(tempFile.toAbsolutePath().toString())
+                    .withHostResource(savedFile.toAbsolutePath().toString())
                     .withRemotePath("/workspace/")
                     .exec();
-
-            Files.deleteIfExists(tempFile);
 
             return ResponseEntity.ok(Map.of(
                     "message", "File uploaded successfully",

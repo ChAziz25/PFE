@@ -66,6 +66,40 @@ export default function ProfilePage() {
       });
   }
 
+  function updateInfo() {
+    fetch("http://localhost:8080/api/updateProfile", {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ userId: user.id, name, email }),
+    })
+      .then((res) => res.json())
+      .then(() => {
+        const updated = { ...user, name, email };
+        localStorage.setItem("user", JSON.stringify(updated));
+        setIsUpdated(false);
+      })
+      .catch((error) => console.error("Error:", error));
+  }
+
+  function updatePassword() {
+    if (password !== confirmPassword) {
+      alert("Passwords do not match");
+      return;
+    }
+    fetch("http://localhost:8080/api/updateProfile", {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ userId: user.id, password }),
+    })
+      .then((res) => res.json())
+      .then(() => {
+        setPassword("");
+        setConfirmPassword("");
+        setIsUpdated(false);
+      })
+      .catch((error) => console.error("Error:", error));
+  }
+
   function addNewSecret() {
     fetch("http://localhost:8080/api/addSecret", {
       method: "POST",
@@ -128,7 +162,7 @@ export default function ProfilePage() {
       });
   }
 
-  function addTool(){
+  function addTool() {
     fetch("http://localhost:8080/api/addTool", {
       method: "POST",
       headers: {
@@ -144,6 +178,27 @@ export default function ProfilePage() {
       .then((response) => response.json())
       .then((data) => {
         console.log(data);
+      })
+      .catch((error) => {
+        console.error("Error:", error);
+      });
+  }
+
+  function deleteUser() {
+    fetch(`http://localhost:8080/api/deleteUser`, {
+      method: "DELETE",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        userId: user.id,
+      }),
+    })
+      .then((res) => res.json())
+      .then((data) => {
+        console.log(data);
+        localStorage.removeItem("user");
+        window.location.href = "/";
       })
       .catch((error) => {
         console.error("Error:", error);
@@ -323,7 +378,10 @@ export default function ProfilePage() {
             </div>
 
             {isUpdated && (
-              <button className="font-mono w-full py-2.5 bg-(--color-primary) text-(--color-button-text) rounded-lg text-[13px] font-semibold tracking-wider transition active:scale-[0.985] hover:opacity-90">
+              <button
+                onClick={updateInfo}
+                className="font-mono w-full py-2.5 bg-(--color-primary) text-(--color-button-text) rounded-lg text-[13px] font-semibold tracking-wider transition active:scale-[0.985] hover:opacity-90"
+              >
                 update info →
               </button>
             )}
@@ -354,7 +412,10 @@ export default function ProfilePage() {
             ))}
 
             {isUpdated && (
-              <button className="font-mono w-full py-2.5 bg-(--color-primary) text-(--color-button-text) rounded-lg text-[13px] font-semibold tracking-wider transition active:scale-[0.985] hover:opacity-90">
+              <button
+                onClick={updatePassword}
+                className="font-mono w-full py-2.5 bg-(--color-primary) text-(--color-button-text) rounded-lg text-[13px] font-semibold tracking-wider transition active:scale-[0.985] hover:opacity-90"
+              >
                 update password →
               </button>
             )}
@@ -464,9 +525,12 @@ export default function ProfilePage() {
         {/* Divider */}
         <div className="h-px bg-(--color-border) -mx-7" />
 
-        {/* Logout */}
-        <button className="font-mono w-full py-2.5 bg-(--color-error-bg) text-(--color-error) border border-(--color-error-border) rounded-lg text-[13px] font-semibold tracking-wider transition hover:opacity-90 active:scale-[0.98]">
-          logout
+        {/* Delete account */}
+        <button
+          className="font-mono w-full py-2.5 bg-(--color-error-bg) text-(--color-error) border border-(--color-error-border) rounded-lg text-[13px] font-semibold tracking-wider transition hover:opacity-90 active:scale-[0.98]"
+          onClick={deleteUser}
+        >
+          Delete account
         </button>
       </div>
     </div>

@@ -7,6 +7,7 @@ import java.util.List;
 
 @Entity
 @Table(name = "Users")
+@Inheritance(strategy = InheritanceType.JOINED)
 public class User {
 
     @Id
@@ -25,6 +26,13 @@ public class User {
 
     @OneToMany(mappedBy = "user", cascade = CascadeType.ALL, fetch = FetchType.EAGER)
     private List<Tool> tools;
+
+    @OneToMany(mappedBy = "taskFor", cascade = CascadeType.ALL, fetch = FetchType.EAGER)
+    private List<Task> tasks;
+
+    @ManyToOne
+    @JoinColumn(name = "scrum_master_id")
+    private ScrumMaster scrumMaster;
 
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
@@ -73,6 +81,9 @@ public class User {
 
     public List<Tool> getTools(){ return tools; }
     public void setTools(List<Tool> tools) {this.tools = tools; }
+
+    public ScrumMaster getScrumMaster() { return scrumMaster; }
+    public void setScrumMaster(ScrumMaster scrumMaster) { this.scrumMaster = scrumMaster; }
 
     public LocalDateTime getCreatedAt() { return createdAt; }
 

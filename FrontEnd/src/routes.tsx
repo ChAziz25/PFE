@@ -7,6 +7,7 @@ const App = lazy(() => import("./App"));
 const Login = lazy(() => import("./Login"));
 const SignUp = lazy(() => import("./SignUp"));
 const Profile = lazy(() => import("./Profile"));
+const SmDashboard = lazy(() => import("./SmDashboard"));
 
 function Routes_() {
   useTheme();
@@ -18,6 +19,7 @@ function Routes_() {
         <Route path="/login" element={<Login />} />
         <Route path="/signup" element={<SignUp />} />
         <Route path="/profile" element={<Profile />} />
+        <Route path="/sm-dashboard" element={<SmDashboard />} />
       </Routes>
     </Suspense>
   );

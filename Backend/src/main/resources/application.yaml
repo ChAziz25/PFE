@@ -52,3 +52,6 @@ minio:
   accessKey: sandbox
   secretKey: sandbox123
   bucket: sandbox-outputs
+
+app:
+  upload-dir: ../uploads

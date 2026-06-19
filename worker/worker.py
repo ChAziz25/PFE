@@ -17,14 +17,27 @@ producer = KafkaProducer(
     value_serializer=lambda v: json.dumps(v).encode('utf-8')
 )
 
+workDir = "/"
+
 def execute(container_ID, command):
+    global workDir
     try:
+        if command.startswith("cd "):
+            new_dir = command[3:].strip()
+            test = subprocess.run(
+                ["docker", "exec", container_ID, "sh", "-c", f"cd {workDir} && cd {new_dir} && pwd"],
+                capture_output=True, text=True, timeout=30
+            )
+            if test.returncode == 0:
+                workDir = test.stdout.strip()
+            return test.stderr.strip() if test.returncode != 0 else ""
+
         result = subprocess.run(
-            ["docker", "exec", container_ID, "sh", "-c", command],
-            capture_output=True,
-            text=True,timeout=30
+            ["docker", "exec", container_ID, "sh", "-c", f"cd {workDir} && {command}"],
+            capture_output=True, text=True, timeout=30
         )
         return (result.stdout + result.stderr).strip()
+
     except Exception as e:
         return f"Error: {str(e)}"
 
